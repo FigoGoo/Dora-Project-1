@@ -30,3 +30,18 @@ vendor/
 # Environment files
 .env
 .env.local
+
+# Config (sensitive)
+configs/local.yaml
+configs/*.local.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp

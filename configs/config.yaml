@@ -1,0 +1,37 @@
+# Dora 魔盒配置文件
+
+app:
+  name: dora-magic-box
+  mode: release
+  environment: development
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+mysql:
+  host: localhost
+  port: 3306
+  user: root
+  password: ""
+  database: dora_magic_box
+  max_idle_conns: 10
+  max_open_conns: 100
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+minio:
+  endpoint: localhost:9000
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
+  bucket: dora-magic-box
+  use_ssl: false
+
+rocketmq:
+  name_servers:
+    - localhost:9876
+  group_name: dora_consumer_group
