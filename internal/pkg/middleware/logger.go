@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"time"
@@ -9,51 +10,51 @@ import (
 
 // Logger 日志中间件
 func Logger() app.HandlerFunc {
-	return func(c *app.RequestContext) {
+	return func(c context.Context, ctx *app.RequestContext) {
 		start := time.Now()
-		path := c.Request.URI().Path()
-		method := string(c.Request.Method())
+		path := ctx.Request.URI().Path()
+		method := string(ctx.Request.Method())
 
-		c.Next(c)
+		ctx.Next(c)
 
 		latency := time.Since(start)
-		statusCode := c.Response.StatusCode()
+		statusCode := ctx.Response.StatusCode()
 
 		logger.Info("HTTP Request",
-			logger.GetLogger().String("path", string(path)),
-			logger.GetLogger().String("method", method),
-			logger.GetLogger().Int("status", statusCode),
-			logger.GetLogger().Duration("latency", latency),
+			logger.String("path", string(path)),
+			logger.String("method", method),
+			logger.Int("status", statusCode),
+			logger.Duration("latency", latency),
 		)
 	}
 }
 
 // Recovery 恢复中间件
 func Recovery() app.HandlerFunc {
-	return func(c *app.RequestContext) {
+	return func(c context.Context, ctx *app.RequestContext) {
 		defer func() {
 			if err := recover(); err != nil {
 				logger.Error("Panic recovered",
-					logger.GetLogger().Any("error", err),
+					logger.Any("error", err),
 				)
-				InternalError(c, "Internal Server Error")
+				InternalError(ctx, "Internal Server Error")
 			}
 		}()
-		c.Next(c)
+		ctx.Next(c)
 	}
 }
 
 // Cors 跨域中间件
 func Cors() app.HandlerFunc {
-	return func(c *app.RequestContext) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	return func(c context.Context, ctx *app.RequestContext) {
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		if string(c.Request.Method()) == "OPTIONS" {
-			c.SetStatusCode(consts.StatusOK)
+		if string(ctx.Request.Method()) == "OPTIONS" {
+			ctx.SetStatusCode(consts.StatusOK)
 			return
 		}
-		c.Next(c)
+		ctx.Next(c)
 	}
 }

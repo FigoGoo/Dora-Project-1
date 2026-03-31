@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+:root {
+    --mb-bg-primary: #0a0a0f;
+    --mb-bg-secondary: #12121a;
+    --mb-bg-tertiary: #1a1a25;
+    --mb-bg-card: rgba(26, 26, 37, 0.8);
+    --mb-bg-glass: rgba(26, 26, 37, 0.6);
+
+    --mb-purple-deep: #2d1b4e;
+    --mb-purple: #6b3fa0;
+    --mb-purple-light: #9b59b6;
+    --mb-pink: #e91e8c;
+    --mb-cyan: #00d4ff;
+    --mb-gold: #ffd700;
+    --mb-amber: #ff9800;
+
+    --mb-gradient-1: linear-gradient(135deg, #6b3fa0 0%, #e91e8c 50%, #00d4ff 100%);
+    --mb-gradient-2: linear-gradient(135deg, #2d1b4e 0%, #6b3fa0 100%);
+    --mb-gradient-glow: linear-gradient(135deg, rgba(107, 63, 160, 0.3) 0%, rgba(233, 30, 140, 0.3) 50%, rgba(0, 212, 255, 0.3) 100%);
+
+    --mb-text-primary: #ffffff;
+    --mb-text-secondary: #b0b0c0;
+    --mb-text-muted: #6b6b80;
+
+    --mb-border: rgba(107, 63, 160, 0.3);
+    --mb-border-light: rgba(107, 63, 160, 0.15);
+
+    --mb-shadow-glow: 0 0 30px rgba(107, 63, 160, 0.4);
+    --mb-shadow-pink: 0 0 30px rgba(233, 30, 140, 0.4);
+    --mb-shadow-cyan: 0 0 30px rgba(0, 212, 255, 0.4);
+
+    --mb-radius-sm: 8px;
+    --mb-radius-md: 12px;
+    --mb-radius-lg: 20px;
+    --mb-radius-xl: 28px;
+
+    --mb-transition-fast: 0.2s ease;
+    --mb-transition-normal: 0.3s ease;
+    --mb-transition-slow: 0.5s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--mb-bg-primary);
+    color: var(--mb-text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(ellipse at 20% 20%, rgba(107, 63, 160, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(233, 30, 140, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.mb-app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.mb-main {
+    flex: 1;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 24px;
+}

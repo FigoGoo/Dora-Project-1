@@ -13,12 +13,13 @@ var (
 
 // Config 应用配置
 type Config struct {
-	App     AppConfig     `mapstructure:"app"`
-	Server  ServerConfig  `mapstructure:"server"`
-	MySQL   MySQLConfig   `mapstructure:"mysql"`
-	Redis   RedisConfig   `mapstructure:"redis"`
-	MinIO   MinIOConfig   `mapstructure:"minio"`
+	App      AppConfig      `mapstructure:"app"`
+	Server   ServerConfig   `mapstructure:"server"`
+	MySQL    MySQLConfig    `mapstructure:"mysql"`
+	Redis    RedisConfig    `mapstructure:"redis"`
+	MinIO    MinIOConfig    `mapstructure:"minio"`
 	RocketMQ RocketMQConfig `mapstructure:"rocketmq"`
+	Etcd     EtcdConfig     `mapstructure:"etcd"`
 }
 
 // AppConfig 应用配置
@@ -77,6 +78,14 @@ type RocketMQConfig struct {
 	GroupName  string   `mapstructure:"group_name"`
 }
 
+// EtcdConfig Etcd配置
+type EtcdConfig struct {
+	Endpoints   []string `mapstructure:"endpoints"`
+	DialTimeout int      `mapstructure:"dial_timeout"`
+	Username    string   `mapstructure:"username"`
+	Password    string   `mapstructure:"password"`
+}
+
 // Init 初始化配置
 func Init(configPath string) error {
 	var err error
@@ -88,7 +97,7 @@ func Init(configPath string) error {
 		viper.SetEnvPrefix("DORA")
 
 		if err = viper.ReadInConfig(); err != nil {
-			err = {fmt.Errorf("读取配置文件失败: %w", err)}
+			err = fmt.Errorf("读取配置文件失败: %w", err)
 			return
 		}
 

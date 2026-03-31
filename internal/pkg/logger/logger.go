@@ -24,7 +24,7 @@ func Init(mode string) error {
 			config = zap.NewDevelopmentConfig()
 			config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		}
-		config.OutputPaths = []string{"stdout", "logs/app.log"}
+		config.OutputPaths = []string{"stdout"}
 		config.ErrorOutputPaths = []string{"stderr"}
 
 		log, err = config.Build()
@@ -90,4 +90,44 @@ func With(fields ...zap.Field) *zap.Logger {
 // S 简化版日志方法
 func S() *zap.SugaredLogger {
 	return GetSugaredLogger()
+}
+
+// String 便捷方法创建String字段
+func String(key, val string) zap.Field {
+	return zap.String(key, val)
+}
+
+// Int 便捷方法创建Int字段
+func Int(key string, val int) zap.Field {
+	return zap.Int(key, val)
+}
+
+// Int64 便捷方法创建Int64字段
+func Int64(key string, val int64) zap.Field {
+	return zap.Int64(key, val)
+}
+
+// Uint64 便捷方法创建Uint64字段
+func Uint64(key string, val uint64) zap.Field {
+	return zap.Uint64(key, val)
+}
+
+// Bool 便捷方法创建Bool字段
+func Bool(key string, val bool) zap.Field {
+	return zap.Bool(key, val)
+}
+
+// Duration 便捷方法创建Duration字段
+func Duration(key string, val interface{}) zap.Field {
+	return zap.Any(key, val)
+}
+
+// Any 便捷方法创建Any字段
+func Any(key string, val interface{}) zap.Field {
+	return zap.Any(key, val)
+}
+
+// Error 便捷方法创建Error字段
+func ErrorField(err error) zap.Field {
+	return zap.Error(err)
 }

@@ -1,12 +1,15 @@
 package main
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/cloudwego/hertz/pkg/common/hlog"
+	"context"
+	"fmt"
+	"dora-magic-box/internal/dal/db"
 	"dora-magic-box/internal/pkg/config"
 	"dora-magic-box/internal/pkg/logger"
 	"dora-magic-box/internal/pkg/middleware"
-	"dora-magic-box/internal/dal/db"
+	"dora-magic-box/internal/pkg/registry"
+	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
 func main() {
@@ -27,6 +30,17 @@ func main() {
 
 	cfg := config.MustGet()
 
+	// 初始化服务注册与发现
+	if err := registry.InitRegistry(
+		false,                   // 开发环境使用内存实现
+		cfg.Etcd.Endpoints,
+		cfg.Etcd.DialTimeout,
+		cfg.Etcd.Username,
+		cfg.Etcd.Password,
+	); err != nil {
+		logger.Fatal("注册中心初始化失败", logger.GetLogger().Any("error", err))
+	}
+
 	// 创建 Hertz 服务器
 	h := server.Default(
 		server.WithHostPorts(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)),
@@ -40,6 +54,29 @@ func main() {
 
 	// 注册路由
 	registerRoutes(h)
+
+	// 启动服务前先注册到注册中心
+	instance := &registry.ServiceInstance{
+		ServiceName: "api-gateway",
+		Address:     cfg.Server.Host,
+		Port:        cfg.Server.Port,
+		Metadata: map[string]string{
+			"version": "v1.0.0",
+			"type":    "api",
+		},
+	}
+	ctx := context.Background()
+	if err := registry.GetRegistry().Register(ctx, instance, 30); err != nil {
+		logger.Fatal("服务注册失败", logger.GetLogger().Any("error", err))
+	}
+
+	// 服务停止时注销
+	defer func() {
+		if err := registry.GetRegistry().Unregister(ctx, instance); err != nil {
+			logger.Error("服务注销失败", logger.GetLogger().Any("error", err))
+		}
+		logger.Info("API Gateway 已停止")
+	}()
 
 	// 启动服务
 	logger.Info("API Gateway 启动",

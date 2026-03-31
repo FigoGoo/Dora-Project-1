@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger as gorm_logger"
+	gorm_logger "gorm.io/gorm/logger"
 	"sync"
 	"time"
 )
@@ -44,7 +44,7 @@ func Init() error {
 
 		// 自动迁移
 		if err = AutoMigrate(); err != nil {
-			logger.Error("数据库迁移失败", logger.GetLogger().Any("error", err))
+			logger.Error("数据库迁移失败", logger.Any("error", err))
 		}
 
 		logger.Info("数据库连接成功")

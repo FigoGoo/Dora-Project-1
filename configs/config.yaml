@@ -35,3 +35,10 @@ rocketmq:
   name_servers:
     - localhost:9876
   group_name: dora_consumer_group
+
+etcd:
+  endpoints:
+    - localhost:2379
+  dial_timeout: 5
+  username: ""
+  password: ""
