@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Select, Button, Space, Divider, message, Spin } from 'antd';
-import { UploadOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Form, Input, Select, Button, Space, Divider, message, Spin, Progress, Modal } from 'antd';
+import { UploadOutlined, SaveOutlined, ThunderboltOutlined, CheckCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 import { useAppStore } from '../store';
 import { InspirationSuggestion } from '../types';
 import { api } from '../api';
 import { colors, gradientStyles, shadowStyles } from '../theme';
+import { debounce } from '../utils';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -18,10 +20,95 @@ const InspirationPage: React.FC = () => {
     setLoading,
     setError,
     createProject,
+    saveDraft,
+    deleteDraft,
+    getDrafts,
   } = useAppStore();
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [autoSaveProgress, setAutoSaveProgress] = useState(0);
+  const [descriptionLength, setDescriptionLength] = useState(0);
+  const [descriptionQuality, setDescriptionQuality] = useState<string>('');
+  const navigate = useNavigate();
+
+  // 保存当前状态为草稿
+  const saveAsDraft = async () => {
+    try {
+      const values = await form.validateFields();
+
+      saveDraft({
+        name: values.projectName || '未命名项目',
+        description: values.description || '',
+        videoType: values.videoType || '剧情短片',
+        duration: values.duration || '15-30秒',
+        style: values.style || '梦幻童话',
+        aspectRatio: values.aspectRatio || '16:9 (横屏)',
+        model: values.model || 'deepseek',
+      });
+
+      messageApi.success('草稿已保存');
+    } catch (error) {
+      messageApi.error('请完善表单信息后再保存草稿');
+    }
+  };
+
+  // 自动保存函数
+  const autoSave = debounce(async (values: any) => {
+    if (!currentProject) return;
+    try {
+      setIsAutoSaving(true);
+      setAutoSaveProgress(30);
+      // 保存数据
+      updateInspiration({
+        name: values.projectName,
+        description: values.description || '',
+        videoType: values.videoType || '剧情短片',
+        duration: values.duration || '15-30秒',
+        style: values.style || '梦幻童话',
+        aspectRatio: values.aspectRatio || '16:9 (横屏)',
+        model: values.model || 'deepseek',
+      });
+      setAutoSaveProgress(70);
+      // 模拟保存进度
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setAutoSaveProgress(100);
+    } catch (error) {
+      console.error('自动保存失败:', error);
+    } finally {
+      setTimeout(() => {
+        setIsAutoSaving(false);
+        setAutoSaveProgress(0);
+      }, 500);
+    }
+  }, 1500);
+
+  // 监听表单变化，触发自动保存
+  const handleValuesChange = useCallback((_changedValues: any, allValues: any) => {
+    if (currentProject) {
+      autoSave(allValues);
+    }
+
+    // 更新描述长度和质量评估
+    if (_changedValues.description !== undefined) {
+      const length = _changedValues.description.length;
+      setDescriptionLength(length);
+
+      if (length < 10) {
+        setDescriptionQuality('描述太短，建议至少10个字');
+      } else if (length < 50) {
+        setDescriptionQuality('描述较短，建议添加更多细节');
+      } else if (length < 200) {
+        setDescriptionQuality('描述长度适中，继续完善');
+      } else if (length < 400) {
+        setDescriptionQuality('描述非常详细，质量很高');
+      } else {
+        setDescriptionQuality('描述过长，建议精简到500字以内');
+      }
+    }
+  }, [currentProject, autoSave]);
 
   // 初始化表单数据
   useEffect(() => {
@@ -36,6 +123,20 @@ const InspirationPage: React.FC = () => {
         aspectRatio: inspiration.aspectRatio,
         model: inspiration.model,
       });
+      // 初始化描述长度和质量
+      const length = inspiration.description.length;
+      setDescriptionLength(length);
+      if (length < 10) {
+        setDescriptionQuality('描述太短，建议至少10个字');
+      } else if (length < 50) {
+        setDescriptionQuality('描述较短，建议添加更多细节');
+      } else if (length < 200) {
+        setDescriptionQuality('描述长度适中，继续完善');
+      } else if (length < 400) {
+        setDescriptionQuality('描述非常详细，质量很高');
+      } else {
+        setDescriptionQuality('描述过长，建议精简到500字以内');
+      }
     } else if (!currentProject) {
       // 没有项目时，创建一个新项目
       createProject();
@@ -46,6 +147,8 @@ const InspirationPage: React.FC = () => {
         aspectRatio: '16:9 (横屏)',
         model: 'deepseek',
       });
+      setDescriptionLength(0);
+      setDescriptionQuality('');
     }
   }, [currentProject, form, createProject]);
 
@@ -105,9 +208,123 @@ const InspirationPage: React.FC = () => {
     }
   };
 
+  // 返回Dashboard
+  const handleBack = () => {
+    navigate('/');
+  };
+
+  // 下一步：剧本编辑器
+  const handleNext = async () => {
+    try {
+      // 先验证并保存表单
+      const values = await form.validateFields();
+      await handleSubmit(values);
+      // 导航到剧本编辑器
+      navigate('/script');
+    } catch (error: any) {
+      messageApi.error('请填写完整信息');
+    }
+  };
+
   // 从草稿导入
   const importFromDraft = () => {
-    messageApi.info('从草稿导入功能开发中...');
+    const drafts = getDrafts();
+
+    if (drafts.length === 0) {
+      messageApi.info('暂无保存的草稿');
+      return;
+    }
+
+    // 创建草稿选择菜单
+    Modal.confirm({
+      title: '选择草稿',
+      content: (
+        <div style={{ maxHeight: 300, overflow: 'auto' }}>
+          {drafts.map((draft) => (
+            <div
+              key={draft.id}
+              style={{
+                padding: '12px',
+                margin: '8px 0',
+                background: colors.bgTertiary,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                border: `1px solid ${colors.border}`,
+              }}
+              onClick={() => {
+                // 加载草稿到表单
+                form.setFieldsValue({
+                  projectName: draft.name,
+                  description: draft.description,
+                  videoType: draft.videoType,
+                  duration: draft.duration,
+                  style: draft.style,
+                  aspectRatio: draft.aspectRatio,
+                  model: draft.model,
+                });
+                Modal.destroyAll();
+                messageApi.success('草稿加载成功');
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.bgSecondary;
+                e.currentTarget.style.borderColor = colors.primary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = colors.bgTertiary;
+                e.currentTarget.style.borderColor = colors.border;
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+              }}>
+                <div>
+                  <div style={{
+                    fontWeight: 600,
+                    color: colors.textPrimary,
+                    marginBottom: '4px',
+                  }}>
+                    {draft.name}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: colors.textSecondary,
+                    marginBottom: '4px',
+                  }}>
+                    保存于: {new Date(draft.savedAt).toLocaleString()}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: colors.textTertiary,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {draft.description}
+                  </div>
+                </div>
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteDraft(draft.id);
+                    messageApi.success('草稿已删除');
+                  }}
+                >
+                  删除
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+      okText: '取消',
+      cancelText: null,
+      onOk: () => {},
+    });
   };
 
   return (
@@ -147,6 +364,7 @@ const InspirationPage: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          onValuesChange={handleValuesChange}
           style={{ maxWidth: 900 }}
         >
           <Form.Item
@@ -171,6 +389,7 @@ const InspirationPage: React.FC = () => {
             rules={[
               { required: true, message: '请描述你的灵感' },
               { min: 10, message: '描述长度不能少于10个字符' },
+              { max: 500, message: '描述长度不能超过500个字符' },
             ]}
             tooltip="用几句话描述你想要的视频"
           >
@@ -178,6 +397,8 @@ const InspirationPage: React.FC = () => {
               rows={5}
               placeholder="例如：一个关于太空探险的故事，宇航员在遥远的星系发现了神秘的外星文明..."
               size="large"
+              showCount
+              maxLength={500}
               style={{
                 background: colors.bgTertiary,
                 borderColor: colors.border,
@@ -186,6 +407,18 @@ const InspirationPage: React.FC = () => {
                 lineHeight: '1.8',
               }}
             />
+            <div style={{
+              marginTop: '8px',
+              fontSize: '12px',
+              color: descriptionLength < 10 ? colors.error :
+                descriptionLength < 50 ? colors.warning :
+                colors.success,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}>
+              💡 {descriptionQuality}
+            </div>
           </Form.Item>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
@@ -274,6 +507,7 @@ const InspirationPage: React.FC = () => {
             name="model"
             label={<span style={{ color: colors.textPrimary, fontWeight: 500 }}>选择文本生成模型</span>}
             rules={[{ required: true, message: '请选择文本生成模型' }]}
+            tooltip="不同的模型有不同的特点和价格，根据你的需求选择合适的模型"
           >
             <Select
               size="large"
@@ -283,15 +517,31 @@ const InspirationPage: React.FC = () => {
               }}
             >
               <Option value="deepseek">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🧠</span>
-                  <span>DeepSeek (文本生成)</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🧠</span>
+                    <span style={{ fontWeight: 500 }}>DeepSeek</span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: colors.textSecondary }}>
+                    专业文本生成模型，擅长创意写作和剧本创作
+                  </div>
+                  <div style={{ fontSize: '11px', color: colors.success }}>
+                    价格实惠，响应速度快
+                  </div>
                 </div>
               </Option>
               <Option value="gemini">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>💎</span>
-                  <span>Gemini 3.1 Pro (多模态)</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>💎</span>
+                    <span style={{ fontWeight: 500 }}>Gemini 3.1 Pro</span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: colors.textSecondary }}>
+                    Google 最新多模态大模型，支持文本、图像、视频
+                  </div>
+                  <div style={{ fontSize: '11px', color: colors.warning }}>
+                    功能强大，但价格较高
+                  </div>
                 </div>
               </Option>
             </Select>
@@ -321,30 +571,41 @@ const InspirationPage: React.FC = () => {
                   key={suggestion.id}
                   style={{
                     padding: '20px',
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${activeSuggestion === suggestion.id ? colors.primary : colors.border}`,
                     borderRadius: '16px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    backgroundColor: colors.bgTertiary,
+                    backgroundColor: activeSuggestion === suggestion.id ? colors.bgSecondary : colors.bgTertiary,
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
-                  onClick={() => useSuggestion(suggestion)}
+                  onClick={() => {
+                    setActiveSuggestion(suggestion.id);
+                    useSuggestion(suggestion);
+                    setTimeout(() => setActiveSuggestion(null), 200);
+                  }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = colors.bgSecondary;
-                    e.currentTarget.style.borderColor = colors.primary;
-                    e.currentTarget.style.boxShadow = shadowStyles.purple;
-                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    if (activeSuggestion !== suggestion.id) {
+                      e.currentTarget.style.backgroundColor = colors.bgSecondary;
+                      e.currentTarget.style.borderColor = colors.primary;
+                      e.currentTarget.style.boxShadow = shadowStyles.purple;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colors.bgTertiary;
-                    e.currentTarget.style.borderColor = colors.border;
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    if (activeSuggestion !== suggestion.id) {
+                      e.currentTarget.style.backgroundColor = colors.bgTertiary;
+                      e.currentTarget.style.borderColor = colors.border;
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
                   }}
                 >
                   <div
                     style={{
                       fontSize: '32px',
                       marginBottom: '12px',
+                      transition: 'transform 0.2s ease',
                     }}
                   >
                     {suggestion.emoji}
@@ -366,6 +627,20 @@ const InspirationPage: React.FC = () => {
                   }}>
                     {suggestion.text}
                   </div>
+                  {activeSuggestion === suggestion.id && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: gradientStyles.glow,
+                      zIndex: 1,
+                      pointerEvents: 'none',
+                      borderRadius: '16px',
+                      animation: 'pulse 0.6s ease',
+                    }} />
+                  )}
                 </div>
               ))}
             </div>
@@ -373,28 +648,66 @@ const InspirationPage: React.FC = () => {
 
           <Divider style={{ borderColor: colors.borderLight, margin: '32px 0' }} />
 
+          {/* 自动保存状态 */}
+          <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+            {isAutoSaving && (
+              <>
+                <ClockCircleOutlined spin style={{ color: colors.primary }} />
+                <span style={{ color: colors.textSecondary, fontSize: '12px' }}>
+                  自动保存中...
+                </span>
+                <Progress percent={autoSaveProgress} size="small" style={{ width: 80 }} />
+              </>
+            )}
+            {!isAutoSaving && currentProject && currentProject.updatedAt && (
+              <>
+                <CheckCircleOutlined style={{ color: colors.success }} />
+                <span style={{ color: colors.textSecondary, fontSize: '12px' }}>
+                  已保存
+                </span>
+              </>
+            )}
+          </div>
+
           <Form.Item>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Button
-                icon={<UploadOutlined />}
-                size="large"
-                onClick={importFromDraft}
-                style={{
-                  background: 'transparent',
-                  borderColor: colors.border,
-                  color: colors.textSecondary,
-                  height: '48px',
-                  padding: '0 24px',
-                  borderRadius: '12px',
-                }}
-              >
-                从草稿导入
-              </Button>
+              <Space>
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  size="large"
+                  onClick={handleBack}
+                  style={{
+                    background: 'transparent',
+                    borderColor: colors.border,
+                    color: colors.textSecondary,
+                    height: '48px',
+                    padding: '0 24px',
+                    borderRadius: '12px',
+                  }}
+                >
+                  返回
+                </Button>
+                <Button
+                  icon={<UploadOutlined />}
+                  size="large"
+                  onClick={importFromDraft}
+                  style={{
+                    background: 'transparent',
+                    borderColor: colors.border,
+                    color: colors.textSecondary,
+                    height: '48px',
+                    padding: '0 24px',
+                    borderRadius: '12px',
+                  }}
+                >
+                  从草稿导入
+                </Button>
+              </Space>
               <Space size="middle">
                 <Button
                   icon={<SaveOutlined />}
                   size="large"
-                  onClick={() => form.submit()}
+                  onClick={saveAsDraft}
                   style={{
                     background: colors.bgTertiary,
                     borderColor: colors.border,
@@ -405,6 +718,21 @@ const InspirationPage: React.FC = () => {
                   }}
                 >
                   保存草稿
+                </Button>
+                <Button
+                  size="large"
+                  onClick={handleNext}
+                  style={{
+                    background: colors.bgCard,
+                    borderColor: colors.primary,
+                    color: colors.primary,
+                    height: '48px',
+                    padding: '0 24px',
+                    borderRadius: '12px',
+                  }}
+                >
+                  下一步
+                  <ArrowRightOutlined />
                 </Button>
                 <Button
                   type="primary"

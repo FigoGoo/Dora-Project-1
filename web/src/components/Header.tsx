@@ -1,14 +1,15 @@
 import React from 'react';
-import { Layout, Button, Dropdown, MenuProps, message } from 'antd';
+import { Layout, Button, Dropdown, MenuProps, message, Tooltip } from 'antd';
 import {
   ProjectOutlined,
   SettingOutlined,
   LoginOutlined,
   MenuOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 
 import { useAppStore } from '../store';
-import { colors, gradientStyles, shadowStyles } from '../theme';
+import { colors, gradientStyles, shadowStyles, animationStyles } from '../theme';
 
 const { Header: AntHeader } = Layout;
 
@@ -28,7 +29,7 @@ const Header: React.FC = () => {
   const handleSaveProject = () => {
     try {
       saveProject();
-      messageApi.success('项目已保存');
+      messageApi.success('项目已保存 ✨');
     } catch (error: any) {
       setError(error.message);
     }
@@ -44,56 +45,104 @@ const Header: React.FC = () => {
           alignItems: 'center',
           padding: '0 32px',
           height: '72px',
-          background: 'rgba(18, 18, 26, 0.95)',
-          backdropFilter: 'blur(20px)',
+          background: 'rgba(18, 18, 26, 0.9)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
           borderBottom: `1px solid ${colors.borderLight}`,
-          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.4)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <MenuOutlined
-            style={{
-              fontSize: '24px',
-              color: colors.textPrimary,
-              marginRight: '16px',
-              cursor: 'pointer',
-              transition: 'color 0.2s ease',
-            }}
-            onClick={() => messageApi.info('侧边栏功能开发中...')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = colors.primaryLight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = colors.textPrimary;
-            }}
-          />
+        {/* 顶部光晕装饰 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '400px',
+          height: '2px',
+          background: gradientStyles.primary,
+          backgroundSize: '200% 200%',
+          animation: 'gradientMove 4s ease infinite',
+          opacity: 0.6,
+        }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+          <Tooltip title="菜单 (开发中)">
+            <MenuOutlined
+              style={{
+                fontSize: '24px',
+                color: colors.textPrimary,
+                marginRight: '16px',
+                cursor: 'pointer',
+                transition: `all ${animationStyles.fast}`,
+                padding: '8px',
+                borderRadius: '10px',
+              }}
+              onClick={() => messageApi.info('侧边栏功能开发中...')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = colors.primaryLight;
+                e.currentTarget.style.backgroundColor = 'rgba(107, 63, 160, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = colors.textPrimary;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            />
+          </Tooltip>
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            color: colors.textPrimary,
             fontSize: '24px',
             fontWeight: 700,
-            background: gradientStyles.primary,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.5px',
+            position: 'relative',
           }}>
             <span style={{
               marginRight: '12px',
               fontSize: '32px',
-              WebkitTextFillColor: 'initial',
+              animation: 'floatSlow 4s ease-in-out infinite',
+              display: 'inline-block',
             }}>🎁</span>
-            Dora 魔盒
+            <span style={{
+              background: gradientStyles.primary,
+              backgroundSize: '200% 200%',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'gradientMove 6s ease infinite',
+              textShadow: '0 0 30px rgba(107, 63, 160, 0.3)',
+            }}>
+              Dora 魔盒
+            </span>
+            <span style={{
+              marginLeft: '8px',
+              fontSize: '14px',
+              color: colors.textMuted,
+              fontWeight: 400,
+              background: 'rgba(107, 63, 160, 0.15)',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              border: '1px solid rgba(107, 63, 160, 0.2)',
+            }}>
+              AI视频生成
+            </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
           <Dropdown
             menu={{
               items: [
                 {
                   key: 'new',
-                  label: '新建项目',
+                  label: (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <PlusOutlined />
+                      <span>新建项目</span>
+                    </span>
+                  ),
                   onClick: () => messageApi.info('新建项目功能开发中...'),
                 },
                 { type: 'divider' },
@@ -118,12 +167,12 @@ const Header: React.FC = () => {
                 height: '44px',
                 padding: '0 20px',
                 borderRadius: '12px',
-                transition: 'all 0.2s ease',
+                transition: `all ${animationStyles.fast}`,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = colors.bgCard;
                 e.currentTarget.style.borderColor = colors.primary;
-                e.currentTarget.style.boxShadow = shadowStyles.purple;
+                e.currentTarget.style.boxShadow = shadowStyles.purpleSoft;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = colors.bgTertiary;
@@ -135,28 +184,32 @@ const Header: React.FC = () => {
             </Button>
           </Dropdown>
 
-          <Button
-            icon={<SettingOutlined />}
-            style={{
-              background: 'transparent',
-              borderColor: colors.border,
-              color: colors.textSecondary,
-              height: '44px',
-              borderRadius: '12px',
-              transition: 'all 0.2s ease',
-            }}
-            onClick={() => messageApi.info('设置功能开发中...')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = colors.primary;
-              e.currentTarget.style.color = colors.textPrimary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = colors.border;
-              e.currentTarget.style.color = colors.textSecondary;
-            }}
-          >
-            设置
-          </Button>
+          <Tooltip title="设置">
+            <Button
+              icon={<SettingOutlined />}
+              style={{
+                background: 'transparent',
+                borderColor: colors.border,
+                color: colors.textSecondary,
+                height: '44px',
+                width: '44px',
+                padding: 0,
+                borderRadius: '12px',
+                transition: `all ${animationStyles.fast}`,
+              }}
+              onClick={() => messageApi.info('设置功能开发中...')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = colors.primary;
+                e.currentTarget.style.color = colors.textPrimary;
+                e.currentTarget.style.backgroundColor = 'rgba(107, 63, 160, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = colors.border;
+                e.currentTarget.style.color = colors.textSecondary;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            />
+          </Tooltip>
 
           {currentProject && (
             <Button
@@ -164,15 +217,17 @@ const Header: React.FC = () => {
               onClick={handleSaveProject}
               style={{
                 background: gradientStyles.primary,
+                backgroundSize: '200% 200%',
                 border: 'none',
                 height: '44px',
                 padding: '0 24px',
                 borderRadius: '12px',
                 fontWeight: 500,
-                transition: 'all 0.2s ease',
+                transition: `all ${animationStyles.fast}`,
+                animation: 'gradientMove 6s ease infinite',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = shadowStyles.purple;
+                e.currentTarget.style.boxShadow = shadowStyles.buttonHover;
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
@@ -193,11 +248,11 @@ const Header: React.FC = () => {
               height: '44px',
               padding: '0 24px',
               borderRadius: '12px',
-              transition: 'all 0.2s ease',
+              transition: `all ${animationStyles.fast}`,
             }}
             onClick={() => messageApi.info('登录功能开发中...')}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = shadowStyles.purple;
+              e.currentTarget.style.boxShadow = shadowStyles.purpleSoft;
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={(e) => {

@@ -12,6 +12,19 @@ import {
   AspectRatio,
 } from '../types';
 
+// 草稿数据类型
+export interface Draft {
+  id: string;
+  name: string;
+  description: string;
+  videoType: VideoType;
+  duration: VideoDuration;
+  style: VisualStyle;
+  aspectRatio: AspectRatio;
+  model: ModelType;
+  savedAt: number;
+}
+
 // 默认 AI 模型配置
 const DEFAULT_MODELS: ModelConfig[] = [
   {
@@ -101,6 +114,7 @@ interface AppState {
   models: ModelConfig[];
   suggestions: InspirationSuggestion[];
   tasks: GenerationTask[];
+  drafts: Draft[];
   isLoading: boolean;
   error: string | null;
 
@@ -126,6 +140,12 @@ interface AppState {
     model: ModelType;
   }) => void;
 
+  // 草稿操作
+  saveDraft: (data: Omit<Draft, 'id' | 'savedAt'>) => void;
+  loadDraft: (draftId: string) => Draft | undefined;
+  deleteDraft: (draftId: string) => void;
+  getDrafts: () => Draft[];
+
   // 生成任务
   addTask: (task: GenerationTask) => void;
   updateTask: (id: string, updates: Partial<GenerationTask>) => void;
@@ -140,6 +160,7 @@ export const useAppStore = create<AppState>()(
       models: DEFAULT_MODELS,
       suggestions: INSPIRATION_SUGGESTIONS,
       tasks: [],
+      drafts: [],
       isLoading: false,
       error: null,
 
@@ -225,6 +246,33 @@ export const useAppStore = create<AppState>()(
             ),
           };
         });
+      },
+
+      saveDraft: (data) => {
+        const draft: Draft = {
+          id: Date.now().toString(),
+          ...data,
+          savedAt: Date.now(),
+        };
+
+        set((state) => ({
+          drafts: [draft, ...state.drafts.slice(0, 19)], // 最多保留 20 个草稿
+        }));
+      },
+
+      loadDraft: (draftId) => {
+        const { drafts } = get();
+        return drafts.find((d) => d.id === draftId);
+      },
+
+      deleteDraft: (draftId) => {
+        set((state) => ({
+          drafts: state.drafts.filter((d) => d.id !== draftId),
+        }));
+      },
+
+      getDrafts: () => {
+        return get().drafts;
       },
 
       addTask: (task) => {
