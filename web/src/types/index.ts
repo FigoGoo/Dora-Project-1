@@ -39,6 +39,8 @@ export interface Project {
     title: string;
     content: string;
     scenes: Scene[];
+    versions?: ScriptVersion[];
+    currentVersion?: number;
   };
 
   // 分镜
@@ -52,6 +54,28 @@ export interface Project {
 
   // 最终视频
   finalVideo?: string;
+
+  // 视频拼接设置
+  concatSettings?: {
+    transitionType: string;
+    transitionDuration: number;
+    outputFormat: string;
+    outputResolution: string;
+    includeAudio: boolean;
+    backgroundMusic?: string;
+  };
+}
+
+// 剧本版本
+export interface ScriptVersion {
+  id: string;
+  versionNumber: number;
+  title: string;
+  content: string;
+  scenes: Scene[];
+  createdAt: number;
+  createdBy?: string;
+  changeDescription?: string;
 }
 
 // 剧本场景
@@ -86,6 +110,7 @@ export interface ImagePanel {
   prompt: string;
   status: 'pending' | 'generating' | 'completed' | 'failed';
   model: ModelType;
+  alternatives?: string[];
 }
 
 // 视频片段
@@ -96,6 +121,7 @@ export interface VideoClip {
   status: 'pending' | 'generating' | 'completed' | 'failed';
   model: ModelType;
   duration: number;
+  order?: number;
 }
 
 // AI模型配置

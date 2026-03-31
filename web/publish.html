@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dora 魔盒 - 视频发布</title>
+    <link rel="stylesheet" href="static/css/magic-box.css">
+</head>
+<body>
+    <div class="mb-particles" id="particles"></div>
+
+    <div class="mb-app">
+        <header class="mb-header">
+            <div class="mb-header-inner">
+                <a href="index.html" class="mb-logo">
+                    <div class="mb-logo-icon">🎁</div>
+                    <span class="mb-logo-text">Dora 魔盒</span>
+                </a>
+
+                <nav class="mb-nav">
+                    <a href="index.html" class="mb-nav-item">灵感</a>
+                    <a href="script-editor.html" class="mb-nav-item">剧本</a>
+                    <a href="storyboard.html" class="mb-nav-item">分镜</a>
+                    <a href="image-editor.html" class="mb-nav-item">绘制</a>
+                    <a href="video-editor.html" class="mb-nav-item">视频</a>
+                    <a href="publish.html" class="mb-nav-item active">发布</a>
+                </nav>
+
+                <div class="mb-user-actions">
+                    <button class="mb-btn-icon" title="分享">🔗</button>
+                    <button class="mb-btn-icon" title="下载">📥</button>
+                    <button class="mb-btn-secondary">💾 保存</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="mb-main">
+            <div class="mb-progress-bar">
+                <div class="mb-progress-step completed">
+                    <div class="mb-progress-circle">✓</div>
+                    <div class="mb-progress-label">灵感输入</div>
+                </div>
+                <div class="mb-progress-step completed">
+                    <div class="mb-progress-line"></div>
+                    <div class="mb-progress-circle">✓</div>
+                    <div class="mb-progress-label">剧本生成</div>
+                </div>
+                <div class="mb-progress-step completed">
+                    <div class="mb-progress-line"></div>
+                    <div class="mb-progress-circle">✓</div>
+                    <div class="mb-progress-label">分镜拆解</div>
+                </div>
+                <div class="mb-progress-step completed">
+                    <div class="mb-progress-line"></div>
+                    <div class="mb-progress-circle">✓</div>
+                    <div class="mb-progress-label">画面绘制</div>
+                </div>
+                <div class="mb-progress-step completed">
+                    <div class="mb-progress-line"></div>
+                    <div class="mb-progress-circle">✓</div>
+                    <div class="mb-progress-label">视频生成</div>
+                </div>
+                <div class="mb-progress-step active">
+                    <div class="mb-progress-line"></div>
+                    <div class="mb-progress-circle">6</div>
+                    <div class="mb-progress-label">发布下载</div>
+                </div>
+            </div>
+
+            <div class="mb-grid-2" style="grid-template-columns: 1fr 400px;">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="mb-card" style="padding: 0;">
+                        <div class="mb-card-header" style="padding: 16px 20px; border-bottom: 1px solid var(--mb-border); margin-bottom: 0;">
+                            <h2 class="mb-card-title" style="font-size: 18px;">
+                                <div class="mb-card-title-icon" style="width: 36px; height: 36px; font-size: 18px;">🎬</div>
+                                最终视频预览
+                            </h2>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="mb-btn mb-btn-secondary" style="padding: 8px 16px;">
+                                    📥 下载视频
+                                </button>
+                                <button class="mb-btn mb-btn-primary" style="padding: 8px 16px;" id="publishBtn">
+                                    🚀 发布视频
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-video-player">
+                            <div class="mb-video-display">
+                                <div class="mb-video-placeholder">
+                                    <div class="mb-video-placeholder-icon">🌌</div>
+                                    <div style="font-size: 18px; margin-bottom: 8px;"><strong>《星际信使》</strong></div>
+                                    <div style="color: var(--mb-text-muted);">点击播放完整视频</div>
+                                </div>
+                            </div>
+                            <div class="mb-video-controls">
+                                <button class="mb-play-btn">▶</button>
+                                <div class="mb-progress-track">
+                                    <div class="mb-progress-fill"></div>
+                                </div>
+                                <div class="mb-time-display">0:00 / 0:30</div>
+                                <button class="mb-volume-btn">🔊</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">发布设置</h3>
+                        <div class="mb-form-group">
+                            <label class="mb-form-label">视频标题</label>
+                            <input type="text" class="mb-input" placeholder="请输入视频标题..." value="《星际信使》">
+                        </div>
+                        <div class="mb-form-group">
+                            <label class="mb-form-label">视频描述</label>
+                            <textarea class="mb-input mb-textarea" placeholder="请输入视频描述...">一个关于星际探索和外星文明的科幻故事，讲述了天文学家林晓月发现神秘信号的冒险旅程。"></textarea>
+                        </div>
+                        <div class="mb-grid-2">
+                            <div class="mb-form-group">
+                                <label class="mb-form-label">可见性</label>
+                                <div class="mb-toggle-group">
+                                    <button class="mb-toggle active">公开</button>
+                                    <button class="mb-toggle">私有</button>
+                                    <button class="mb-toggle">密码保护</button>
+                                </div>
+                            </div>
+                            <div class="mb-form-group">
+                                <label class="mb-form-label">分类</label>
+                                <select class="mb-input mb-select">
+                                    <option selected>科幻</option>
+                                    <option>动画</option>
+                                    <option>教育</option>
+                                    <option>娱乐</option>
+                                    <option>其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">分享选项</h3>
+                        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                            <button class="mb-btn mb-btn-secondary" style="flex: 1;">
+                                📘 分享到 Facebook
+                            </button>
+                            <button class="mb-btn mb-btn-secondary" style="flex: 1;">
+                                🐦 分享到 Twitter
+                            </button>
+                            <button class="mb-btn mb-btn-secondary" style="flex: 1;">
+                                💬 分享到微信
+                            </button>
+                        </div>
+                        <div class="mb-form-group">
+                            <label class="mb-form-label">分享链接</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" class="mb-input" value="https://dorabox.example.com/v/123456" readonly>
+                                <button class="mb-btn mb-btn-secondary" id="copyLinkBtn">
+                                    📋 复制
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">视频信息</h3>
+                        <div style="display: grid; gap: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--mb-text-muted);">分辨率</span>
+                                <span>1080p (1920×1080)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--mb-text-muted);">帧率</span>
+                                <span>30 fps</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--mb-text-muted);">时长</span>
+                                <span>0:30</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--mb-text-muted);">文件大小</span>
+                                <span>25 MB</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--mb-text-muted);">格式</span>
+                                <span>MP4</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">下载选项</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button class="mb-btn mb-btn-secondary" style="width: 100%; justify-content: space-between;">
+                                <span>📥 下载 MP4</span>
+                                <span>25 MB</span>
+                            </button>
+                            <button class="mb-btn mb-btn-secondary" style="width: 100%; justify-content: space-between;">
+                                <span>🎬 下载 HD</span>
+                                <span>45 MB</span>
+                            </button>
+                            <button class="mb-btn mb-btn-secondary" style="width: 100%; justify-content: space-between;">
+                                <span>🌟 下载 4K</span>
+                                <span>120 MB</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">项目统计</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                            <div style="background: var(--mb-bg-secondary); padding: 16px; border-radius: var(--mb-radius-md); text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--mb-purple-light);">3</div>
+                                <div style="font-size: 12px; color: var(--mb-text-muted);">场景数</div>
+                            </div>
+                            <div style="background: var(--mb-bg-secondary); padding: 16px; border-radius: var(--mb-radius-md); text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--mb-cyan);">30s</div>
+                                <div style="font-size: 12px; color: var(--mb-text-muted);">总时长</div>
+                            </div>
+                            <div style="background: var(--mb-bg-secondary); padding: 16px; border-radius: var(--mb-radius-md); text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--mb-pink);">2</div>
+                                <div style="font-size: 12px; color: var(--mb-text-muted);">角色数</div>
+                            </div>
+                            <div style="background: var(--mb-bg-secondary); padding: 16px; border-radius: var(--mb-radius-md); text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--mb-gold);">4.8</div>
+                                <div style="font-size: 12px; color: var(--mb-text-muted);">评分</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-card">
+                        <h3 class="mb-section-title">下一步建议</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--mb-bg-secondary); border-radius: var(--mb-radius-md);">
+                                <span style="font-size: 24px;">📈</span>
+                                <div>
+                                    <div style="font-weight: 500; font-size: 14px;">推广建议</div>
+                                    <div style="font-size: 12px; color: var(--mb-text-muted);">分享到社交媒体获得更多关注</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--mb-bg-secondary); border-radius: var(--mb-radius-md);">
+                                <span style="font-size: 24px;">🎥</span>
+                                <div>
+                                    <div style="font-weight: 500; font-size: 14px;">创建续集</div>
+                                    <div style="font-size: 12px; color: var(--mb-text-muted);">继续探索外星文明的故事</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--mb-bg-secondary); border-radius: var(--mb-radius-md);">
+                                <span style="font-size: 24px;">💡</span>
+                                <div>
+                                    <div style="font-weight: 500; font-size: 14px;">获取灵感</div>
+                                    <div style="font-size: 12px; color: var(--mb-text-muted);">查看更多 AI 生成的创意作品</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mb-footer">
+            <div class="mb-footer-inner">
+                <div style="display: flex; gap: 12px;">
+                    <a href="video-editor.html" class="mb-btn mb-btn-secondary">
+                        ← 返回视频编辑
+                    </a>
+                </div>
+                <div class="mb-footer-steps">
+                    <span>步骤</span>
+                    <strong>6</strong>
+                    <span>/</span>
+                    <strong>6</strong>
+                    <span>· 发布下载</span>
+                </div>
+                <div class="mb-footer-actions">
+                    <button class="mb-btn mb-btn-primary" id="completeBtn">
+                        ✨ 完成所有操作
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div class="mb-generating-overlay" id="generatingOverlay" style="display: none;">
+        <div class="mb-generating-content">
+            <div class="mb-magic-box">
+                <div class="mb-magic-particles">
+                    <div class="mb-magic-particle"></div>
+                    <div class="mb-magic-particle"></div>
+                    <div class="mb-magic-particle"></div>
+                    <div class="mb-magic-particle"></div>
+                </div>
+                <div class="mb-magic-box-cube">🚀</div>
+            </div>
+            <div class="mb-generating-text">正在发布视频...</div>
+            <div class="mb-generating-subtext">视频将很快可以在各大平台观看</div>
+            <div class="mb-progress-bar-generating">
+                <div class="mb-progress-bar-generating-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'mb-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                document.getElementById('particles').appendChild(particle);
+            }
+
+            const toggles = document.querySelectorAll('.mb-toggle');
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const group = this.parentElement;
+                    group.querySelectorAll('.mb-toggle').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            const publishBtn = document.getElementById('publishBtn');
+            const completeBtn = document.getElementById('completeBtn');
+            const copyLinkBtn = document.getElementById('copyLinkBtn');
+            const overlay = document.getElementById('generatingOverlay');
+
+            publishBtn.addEventListener('click', function() {
+                overlay.style.display = 'flex';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    alert('视频发布成功！');
+                }, 3000);
+            });
+
+            completeBtn.addEventListener('click', function() {
+                overlay.style.display = 'flex';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    alert('恭喜！您已完成所有操作，视频已发布并下载。');
+                }, 3000);
+            });
+
+            copyLinkBtn.addEventListener('click', function() {
+                const link = document.querySelector('.mb-input[value*="dorabox"]');
+                link.select();
+                document.execCommand('copy');
+                alert('链接已复制到剪贴板！');
+            });
+        });
+    </script>
+</body>
+</html>

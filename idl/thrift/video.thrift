@@ -2,8 +2,7 @@ include "base.thrift"
 namespace go video
 
 // 视频信息
-struct
-VideoInfo {
+struct VideoInfo {
     1: string id (go.tag = "json:\"id\""),
     2: string storyboard_id (go.tag = "json:\"storyboard_id\""),
     3: string url (go.tag = "json:\"url\""),                  // 视频URL

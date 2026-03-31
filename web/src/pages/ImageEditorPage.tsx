@@ -6,11 +6,16 @@ import {
   Space,
   Divider,
   message,
-  Typography,
   Tag,
   Modal,
   Spin,
   Progress,
+  Select,
+  Tabs,
+  Tooltip,
+  Upload,
+  Badge,
+  Image,
 } from 'antd';
 import {
   EditOutlined,
@@ -18,16 +23,48 @@ import {
   RightOutlined,
   ReloadOutlined,
   DownloadOutlined,
+  UploadOutlined,
+  SwapOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
 
 import { useAppStore } from '../store';
 import { StoryboardPanel, ImagePanel } from '../types';
-import { generateId } from '../utils';
+import { generateId, formatFileSize } from '../utils';
 import { api } from '../api';
 import { colors, gradientStyles, shadowStyles } from '../theme';
 
 const { TextArea } = Input;
-const { Title, Paragraph } = Typography;
+const { Option } = Select;
+const { TabPane } = Tabs;
+
+// 图片模型选项
+const IMAGE_MODELS = [
+  { id: 'banana', name: 'Banana 2', icon: '🍌', description: '高质量图像生成' },
+  { id: 'midjourney', name: 'Midjourney', icon: '🎨', description: '艺术风格创作' },
+  { id: 'dalle', name: 'DALL-E', icon: '🖼️', description: 'OpenAI 图像模型' },
+];
+
+// 风格预设
+const STYLE_PRESETS = [
+  { id: 'cinematic', name: '电影质感', prompt: 'cinematic lighting, film grain, depth of field' },
+  { id: 'anime', name: '动漫风格', prompt: 'anime style, vibrant colors, detailed' },
+  { id: 'realistic', name: '写实风格', prompt: 'photorealistic, high detail, 8k' },
+  { id: 'watercolor', name: '水彩风格', prompt: 'watercolor painting, artistic, soft colors' },
+  { id: 'oil', name: '油画风格', prompt: 'oil painting, thick brushstrokes, classic art' },
+];
+
+// 质量预设
+const QUALITY_PRESETS = [
+  { id: 'standard', name: '标准', resolution: '1024x1024' },
+  { id: 'high', name: '高清', resolution: '1536x1536' },
+  { id: 'ultra', name: '超清', resolution: '2048x2048' },
+];
 
 const ImageEditorPage: React.FC = () => {
   const { currentProject, updateProject, setError } = useAppStore();
@@ -35,26 +72,32 @@ const ImageEditorPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<ImagePanel | null>(null);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingImage, setEditingImage] = useState<ImagePanel | null>(null);
+  const [activeTab, setActiveTab] = useState('grid');
+  const [selectedQuality, setSelectedQuality] = useState('standard');
 
   const storyboardPanels = currentProject?.storyboard || [];
   const images = currentProject?.images || [];
 
   // 初始化图片数据
   useEffect(() => {
-    if (!currentProject || currentProject.images) return;
+    if (!currentProject) return;
+    if (!currentProject.images && currentProject.storyboard) {
+      // 如果没有图片，根据分镜创建初始图片记录
+      const initialImages: ImagePanel[] = currentProject.storyboard.map((panel) => ({
+        id: generateId(),
+        storyboardPanelId: panel.id,
+        prompt: panel.description,
+        status: 'pending' as const,
+        model: 'banana',
+        alternatives: [],
+      }));
 
-    // 如果没有图片，根据分镜创建初始图片记录
-    const initialImages: ImagePanel[] = (currentProject.storyboard || []).map((panel) => ({
-      id: generateId(),
-      storyboardPanelId: panel.id,
-      prompt: panel.description,
-      status: 'pending' as const,
-      model: 'banana',
-    }));
-
-    updateProject(currentProject.id, {
-      images: initialImages,
-    });
+      updateProject(currentProject.id, {
+        images: initialImages,
+      });
+    }
   }, [currentProject, updateProject]);
 
   // 获取对应分镜信息
@@ -156,51 +199,94 @@ const ImageEditorPage: React.FC = () => {
     setPreviewModalVisible(true);
   };
 
-  // 更新提示词
-  const handleEditPrompt = (imagePanel: ImagePanel) => {
-    Modal.confirm({
-      title: '编辑提示词',
-      content: (
-        <TextArea
-          rows={6}
-          defaultValue={imagePanel.prompt}
-          onChange={(e) => {
-            updateImagePanel(imagePanel.id, { prompt: e.target.value });
-          }}
-          style={{
-            background: colors.bgTertiary,
-            borderColor: colors.border,
-            color: colors.textPrimary,
-          }}
-        />
-      ),
-      okText: '保存',
-      cancelText: '取消',
-      onOk: () => {
-        messageApi.success('提示词已更新');
-      },
-      centered: true,
-      okButtonProps: {
-        style: {
-          background: gradientStyles.primary,
-          border: 'none',
-        },
-      },
-      cancelButtonProps: {
-        style: {
-          background: colors.bgTertiary,
-          borderColor: colors.border,
-          color: colors.textPrimary,
-        },
-      },
+  // 编辑图片
+  const handleEditImage = (imagePanel: ImagePanel) => {
+    setEditingImage({ ...imagePanel });
+    setEditModalVisible(true);
+  };
+
+  // 保存编辑
+  const handleSaveEdit = () => {
+    if (!editingImage) return;
+    updateImagePanel(editingImage.id, editingImage);
+    setEditModalVisible(false);
+    setEditingImage(null);
+    messageApi.success('图片设置已更新');
+  };
+
+  // 添加风格预设到提示词
+  const addStylePreset = (style: typeof STYLE_PRESETS[0]) => {
+    if (!editingImage) return;
+    const newPrompt = editingImage.prompt
+      ? `${editingImage.prompt}, ${style.prompt}`
+      : style.prompt;
+    setEditingImage({ ...editingImage, prompt: newPrompt });
+  };
+
+  // 选择备选图片
+  const selectAlternative = (imagePanel: ImagePanel, altUrl: string) => {
+    const currentUrl = imagePanel.imageUrl;
+    const alternatives = [...(imagePanel.alternatives || [])];
+
+    // 如果当前有图片，将其加入备选
+    if (currentUrl && !alternatives.includes(currentUrl)) {
+      alternatives.push(currentUrl);
+    }
+
+    // 从备选列表中移除选中的图片
+    const newAlternatives = alternatives.filter((url) => url !== altUrl);
+
+    updateImagePanel(imagePanel.id, {
+      imageUrl: altUrl,
+      alternatives: newAlternatives,
     });
+    messageApi.success('已切换图片');
+  };
+
+  // 上传自定义图片
+  const uploadProps: UploadProps = {
+    showUploadList: false,
+    beforeUpload: async (file) => {
+      if (!editingImage) return false;
+
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        messageApi.error('请上传图片文件');
+        return false;
+      }
+
+      const isLt10MB = file.size / 1024 / 1024 < 10;
+      if (!isLt10MB) {
+        messageApi.error('图片大小不能超过 10MB');
+        return false;
+      }
+
+      // 模拟上传
+      const url = URL.createObjectURL(file);
+
+      // 如果当前有图片，将其加入备选
+      const currentUrl = editingImage.imageUrl;
+      const alternatives = [...(editingImage.alternatives || [])];
+      if (currentUrl) {
+        alternatives.push(currentUrl);
+      }
+
+      setEditingImage({
+        ...editingImage,
+        imageUrl: url,
+        status: 'completed',
+        alternatives,
+      });
+
+      messageApi.success('图片已上传');
+      return false;
+    },
   };
 
   // 前往下一步
   const goToVideoEditor = () => {
     if (!currentProject) return;
 
-    // 检查是否有完成的图片
     const hasCompletedImages = currentProject.images?.some(
       (img) => img.status === 'completed'
     );
@@ -228,9 +314,9 @@ const ImageEditorPage: React.FC = () => {
   const progress = images.length > 0 ? Math.round((completedCount / images.length) * 100) : 0;
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
         {/* 左侧：图片编辑器 */}
         <div>
           <Card
@@ -287,6 +373,30 @@ const ImageEditorPage: React.FC = () => {
               </Space>
             }
           >
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              items={[
+                {
+                  key: 'grid',
+                  label: (
+                    <span>
+                      📱 网格视图
+                    </span>
+                  ),
+                },
+                {
+                  key: 'list',
+                  label: (
+                    <span>
+                      📋 列表视图
+                    </span>
+                  ),
+                },
+              ]}
+              style={{ marginBottom: '20px' }}
+            />
+
             {images.length === 0 ? (
               <div style={{
                 textAlign: 'center',
@@ -299,11 +409,11 @@ const ImageEditorPage: React.FC = () => {
                   请先在分镜编辑器中创建分镜
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'grid' ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '16px',
+                gap: '20px',
               }}>
                 {images.map((image, index) => {
                   const panel = getStoryboardPanel(image.storyboardPanelId);
@@ -320,39 +430,27 @@ const ImageEditorPage: React.FC = () => {
                       }}
                       hoverable
                       actions={[
-                        <EditOutlined
-                          key="edit"
-                          onClick={() => handleEditPrompt(image)}
-                          style={{ color: colors.textSecondary }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = colors.primary;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = colors.textSecondary;
-                          }}
-                        />,
-                        <ReloadOutlined
-                          key="regenerate"
-                          onClick={() => regenerateImage(image)}
-                          style={{ color: colors.textSecondary }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = colors.primary;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = colors.textSecondary;
-                          }}
-                        />,
-                        <DownloadOutlined
-                          key="download"
-                          onClick={() => downloadImage(image)}
-                          style={{ color: colors.textSecondary }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = colors.primary;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = colors.textSecondary;
-                          }}
-                        />,
+                        <Tooltip title="编辑">
+                          <EditOutlined
+                            key="edit"
+                            onClick={() => handleEditImage(image)}
+                            style={{ color: colors.textSecondary }}
+                          />
+                        </Tooltip>,
+                        <Tooltip title="重新生成">
+                          <ReloadOutlined
+                            key="regenerate"
+                            onClick={() => regenerateImage(image)}
+                            style={{ color: colors.textSecondary }}
+                          />
+                        </Tooltip>,
+                        <Tooltip title="下载">
+                          <DownloadOutlined
+                            key="download"
+                            onClick={() => downloadImage(image)}
+                            style={{ color: colors.textSecondary }}
+                          />
+                        </Tooltip>,
                       ]}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = colors.primary;
@@ -366,7 +464,7 @@ const ImageEditorPage: React.FC = () => {
                       }}
                     >
                       <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-                        <Space size="small">
+                        <Space size="small" wrap>
                           <Tag
                             color={colors.primary}
                             style={{ background: 'rgba(107, 63, 160, 0.2)' }}
@@ -394,11 +492,16 @@ const ImageEditorPage: React.FC = () => {
                               生成失败
                             </Tag>
                           )}
+                          {image.alternatives && image.alternatives.length > 0 && (
+                            <Tag style={{ background: 'rgba(107, 63, 160, 0.2)', color: colors.primary }}>
+                              +{image.alternatives.length} 备选
+                            </Tag>
+                          )}
                         </Space>
                       </div>
 
                       <div style={{
-                        height: '200px',
+                        height: '220px',
                         backgroundColor: colors.bgSecondary,
                         borderRadius: '12px',
                         marginBottom: '12px',
@@ -407,26 +510,99 @@ const ImageEditorPage: React.FC = () => {
                         justifyContent: 'center',
                         cursor: 'pointer',
                         overflow: 'hidden',
-                      }} onClick={() => viewImage(image)}>
+                        position: 'relative',
+                      }} onClick={() => image.imageUrl && viewImage(image)}>
                         {image.status === 'generating' || isGeneratingThis ? (
                           <div style={{ textAlign: 'center' }}>
                             <Spin size="large" style={{ marginBottom: '8px', color: colors.primary }} />
                             <div style={{ color: colors.textSecondary }}>正在生成中...</div>
                           </div>
                         ) : image.imageUrl ? (
-                          <img
-                            src={image.imageUrl}
-                            alt={`画面 ${index + 1}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                            }}
-                          />
+                          <>
+                            <img
+                              src={image.imageUrl}
+                              alt={`画面 ${index + 1}`}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                            {/* 备选图片选择器 */}
+                            {image.alternatives && image.alternatives.length > 0 && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '8px',
+                                left: '8px',
+                                right: '8px',
+                                display: 'flex',
+                                gap: '8px',
+                                overflowX: 'auto',
+                                padding: '4px',
+                                background: 'rgba(0, 0, 0, 0.5)',
+                                borderRadius: '8px',
+                              }} onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: '8px',
+                                    border: `2px solid ${colors.primary}`,
+                                    overflow: 'hidden',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <img
+                                    src={image.imageUrl}
+                                    alt="当前"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </div>
+                                {image.alternatives.map((alt, i) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      width: '48px',
+                                      height: '48px',
+                                      borderRadius: '8px',
+                                      border: `2px solid ${colors.border}`,
+                                      overflow: 'hidden',
+                                      cursor: 'pointer',
+                                      flexShrink: 0,
+                                    }}
+                                    onClick={() => selectAlternative(image, alt)}
+                                  >
+                                    <img
+                                      src={alt}
+                                      alt={`备选 ${i + 1}`}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* 查看大图按钮 */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              opacity: 0,
+                              transition: 'opacity 0.2s',
+                            }} className="hover-opacity-100">
+                              <Button
+                                type="text"
+                                icon={<EyeOutlined />}
+                                style={{
+                                  background: 'rgba(0, 0, 0, 0.5)',
+                                  color: '#fff',
+                                }}
+                              />
+                            </div>
+                          </>
                         ) : (
                           <div style={{ textAlign: 'center', color: colors.textMuted }}>
                             <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎨</div>
-                            <div style={{ fontSize: '12px', marginBottom: '8px' }}>待绘制</div>
+                            <div style={{ fontSize: '12px', marginBottom: '12px' }}>待绘制</div>
                             <Button
                               type="primary"
                               size="small"
@@ -450,19 +626,134 @@ const ImageEditorPage: React.FC = () => {
                         fontSize: '12px',
                         color: colors.textSecondary,
                         marginBottom: '8px',
+                        lineHeight: '1.5',
                       }}>
-                        {image.prompt.slice(0, 60) + (image.prompt.length > 60 ? '...' : '')}
+                        {image.prompt.slice(0, 80) + (image.prompt.length > 80 ? '...' : '')}
                       </div>
 
                       <Space wrap style={{ fontSize: '12px' }}>
                         <Tag style={{ background: 'rgba(233, 30, 140, 0.2)', color: colors.pink }}>
-                          {image.model === 'banana' ? '🍌 Banana 2' : '其他'}
+                          {image.model === 'banana' ? '🍌 Banana 2' :
+                           image.model === 'midjourney' ? '🎨 Midjourney' :
+                           image.model === 'dalle' ? '🖼️ DALL-E' : image.model}
                         </Tag>
                       </Space>
                     </Card>
                   );
                 })}
               </div>
+            ) : (
+              <List
+                dataSource={images}
+                renderItem={(image, index) => {
+                  const panel = getStoryboardPanel(image.storyboardPanelId);
+                  const isGeneratingThis = isGenerating.includes(image.id);
+
+                  return (
+                    <List.Item
+                      style={{
+                        padding: '16px',
+                        background: colors.bgTertiary,
+                        borderRadius: '12px',
+                        marginBottom: '12px',
+                        border: `1px solid ${colors.border}`,
+                      }}
+                      actions={[
+                        image.status === 'pending' || image.status === 'failed' ? (
+                          <Button
+                            type="text"
+                            size="small"
+                            onClick={() => generateImage(image)}
+                            disabled={isGeneratingThis}
+                          >
+                            生成
+                          </Button>
+                        ) : null,
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => handleEditImage(image)}
+                        />,
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ReloadOutlined />}
+                          onClick={() => regenerateImage(image)}
+                        />,
+                        image.status === 'completed' && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<DownloadOutlined />}
+                            onClick={() => downloadImage(image)}
+                          />
+                        ),
+                      ].filter(Boolean)}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <div style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '12px',
+                            background: colors.bgSecondary,
+                            overflow: 'hidden',
+                          }}>
+                            {image.imageUrl ? (
+                              <img
+                                src={image.imageUrl}
+                                alt="缩略图"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <div style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '32px',
+                              }}>
+                                🎨
+                              </div>
+                            )}
+                          </div>
+                        }
+                        title={
+                          <Space>
+                            <Tag style={{ background: 'rgba(107, 63, 160, 0.3)', color: colors.primary, border: 'none' }}>
+                              #{panel?.panelNumber || index + 1}
+                            </Tag>
+                            {image.status === 'pending' && <span style={{ color: colors.warning }}>待生成</span>}
+                            {image.status === 'generating' && <span style={{ color: colors.info }}><Spin size="small" /> 生成中</span>}
+                            {image.status === 'completed' && <span style={{ color: colors.success }}>已完成</span>}
+                            {image.status === 'failed' && <span style={{ color: colors.error }}>生成失败</span>}
+                          </Space>
+                        }
+                        description={
+                          <div>
+                            <div style={{ color: colors.textSecondary, fontSize: '13px', marginBottom: '8px' }}>
+                              {image.prompt.slice(0, 100)}
+                              {image.prompt.length > 100 ? '...' : ''}
+                            </div>
+                            <Space size="small">
+                              <Tag size="small" style={{ background: 'rgba(233, 30, 140, 0.2)', color: colors.pink, border: 'none' }}>
+                                {image.model}
+                              </Tag>
+                              {image.alternatives && image.alternatives.length > 0 && (
+                                <Tag size="small" style={{ background: 'rgba(107, 63, 160, 0.2)', color: colors.primary, border: 'none' }}>
+                                  +{image.alternatives.length} 备选
+                                </Tag>
+                              )}
+                            </Space>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  );
+                }}
+              />
             )}
           </Card>
 
@@ -509,7 +800,7 @@ const ImageEditorPage: React.FC = () => {
           <Card
             title={<span style={{ color: colors.textPrimary, fontWeight: 600 }}>AI模型选择</span>}
             style={{
-              marginBottom: '32px',
+              marginBottom: '24px',
               background: colors.bgCard,
               backdropFilter: 'blur(20px)',
               border: `1px solid ${colors.border}`,
@@ -524,26 +815,61 @@ const ImageEditorPage: React.FC = () => {
               padding: '24px',
             }}
           >
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{
-                padding: '16px',
-                border: `2px solid ${colors.primary}`,
-                borderRadius: '12px',
-                backgroundColor: 'rgba(107, 63, 160, 0.1)',
-              }}>
-                <Space size="middle">
-                  <span style={{ fontSize: '28px' }}>🍌</span>
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: colors.textPrimary }}>Banana 2</div>
-                    <div style={{ fontSize: '12px', color: colors.textSecondary }}>图像生成模型</div>
-                  </div>
-                </Space>
-              </div>
-            </div>
-            <div style={{ fontSize: '13px', color: colors.textSecondary }}>
-              <p>当前使用 Banana 2 图像生成模型</p>
-              <p>可以在设置中切换其他模型</p>
-            </div>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              {IMAGE_MODELS.map((model) => (
+                <div
+                  key={model.id}
+                  style={{
+                    padding: '16px',
+                    border: `2px solid ${model.id === 'banana' ? colors.primary : colors.border}`,
+                    borderRadius: '12px',
+                    backgroundColor: model.id === 'banana' ? 'rgba(107, 63, 160, 0.1)' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Space size="middle">
+                    <span style={{ fontSize: '28px' }}>{model.icon}</span>
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: colors.textPrimary }}>{model.name}</div>
+                      <div style={{ fontSize: '12px', color: colors.textSecondary }}>{model.description}</div>
+                    </div>
+                    {model.id === 'banana' && (
+                      <CheckCircleOutlined style={{ color: colors.primary, fontSize: '18px', marginLeft: 'auto' }} />
+                    )}
+                  </Space>
+                </div>
+              ))}
+            </Space>
+          </Card>
+
+          <Card
+            title={<span style={{ color: colors.textPrimary, fontWeight: 600 }}>生成质量</span>}
+            style={{
+              marginBottom: '24px',
+              background: colors.bgCard,
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '20px',
+              boxShadow: shadowStyles.card,
+            }}
+            headStyle={{
+              borderBottom: `1px solid ${colors.borderLight}`,
+              padding: '20px 24px',
+            }}
+            bodyStyle={{
+              padding: '24px',
+            }}
+          >
+            <Select
+              value={selectedQuality}
+              onChange={setSelectedQuality}
+              style={{ width: '100%' }}
+              options={QUALITY_PRESETS.map((q) => ({
+                label: `${q.name} (${q.resolution})`,
+                value: q.id,
+              }))}
+            />
           </Card>
 
           <Card
@@ -566,7 +892,7 @@ const ImageEditorPage: React.FC = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              marginBottom: '8px',
+              marginBottom: '12px',
               color: colors.textPrimary,
             }}>
               <span>总图片数：</span>
@@ -575,28 +901,28 @@ const ImageEditorPage: React.FC = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              marginBottom: '8px',
+              marginBottom: '12px',
               color: colors.textPrimary,
             }}>
-              <span>已完成：</span>
+              <span><CheckCircleOutlined style={{ color: colors.success, marginRight: '6px' }} />已完成：</span>
               <span>{completedCount}</span>
             </div>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              marginBottom: '8px',
+              marginBottom: '12px',
               color: colors.textPrimary,
             }}>
-              <span>待生成：</span>
+              <span><ClockCircleOutlined style={{ color: colors.warning, marginRight: '6px' }} />待生成：</span>
               <span>{images.filter((img) => img.status === 'pending').length}</span>
             </div>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              marginBottom: '8px',
+              marginBottom: '12px',
               color: colors.textPrimary,
             }}>
-              <span>失败：</span>
+              <span><CloseCircleOutlined style={{ color: colors.error, marginRight: '6px' }} />失败：</span>
               <span>{images.filter((img) => img.status === 'failed').length}</span>
             </div>
           </Card>
@@ -643,7 +969,83 @@ const ImageEditorPage: React.FC = () => {
             关闭
           </Button>,
         ]}
-        width={800}
+        width={900}
+        centered={true}
+      >
+        {selectedImage?.imageUrl && (
+          <div style={{ textAlign: 'center' }}>
+            <img
+              src={selectedImage.imageUrl}
+              alt="预览"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+                borderRadius: '12px',
+              }}
+            />
+            <div style={{ marginTop: '20px', textAlign: 'left' }}>
+              <h4 style={{ color: colors.textPrimary, marginBottom: '10px' }}>提示词</h4>
+              <p style={{ color: colors.textSecondary, fontSize: '14px', lineHeight: '1.8' }}>
+                {selectedImage.prompt}
+              </p>
+              {selectedImage.alternatives && selectedImage.alternatives.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h4 style={{ color: colors.textPrimary, marginBottom: '12px' }}>
+                    备选图片 ({selectedImage.alternatives.length})
+                  </h4>
+                  <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '8px 0' }}>
+                    {selectedImage.alternatives.map((alt, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: '120px',
+                          height: '120px',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          border: `2px solid ${colors.border}`,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                        onClick={() => selectAlternative(selectedImage, alt)}
+                      >
+                        <img
+                          src={alt}
+                          alt={`备选 ${i + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 编辑图片弹窗 */}
+      <Modal
+        title={
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: colors.textPrimary,
+          }}>
+            <EditOutlined style={{ fontSize: '20px' }} />
+            编辑图片设置
+          </div>
+        }
+        open={editModalVisible}
+        onOk={handleSaveEdit}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingImage(null);
+        }}
+        width={700}
+        okText="保存"
+        cancelText="取消"
         centered={true}
         okButtonProps={{
           style: {
@@ -659,21 +1061,114 @@ const ImageEditorPage: React.FC = () => {
           },
         }}
       >
-        {selectedImage?.imageUrl && (
-          <div style={{ textAlign: 'center' }}>
-            <img
-              src={selectedImage.imageUrl}
-              alt="预览"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '600px',
-                objectFit: 'contain',
-              }}
-            />
-            <div style={{ marginTop: '16px', textAlign: 'left' }}>
-              <h4 style={{ color: colors.textPrimary, marginBottom: '8px' }}>提示词</h4>
-              <p style={{ color: colors.textSecondary, fontSize: '14px', lineHeight: '1.6' }}>
-                {selectedImage.prompt}
+        {editingImage && (
+          <div>
+            {/* 当前图片预览 */}
+            {editingImage.imageUrl && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{
+                  height: '200px',
+                  background: colors.bgSecondary,
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <img
+                    src={editingImage.imageUrl}
+                    alt="当前图片"
+                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 提示词编辑 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ color: colors.textPrimary, fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                提示词
+              </label>
+              <TextArea
+                value={editingImage.prompt}
+                onChange={(e) => setEditingImage({ ...editingImage, prompt: e.target.value })}
+                rows={4}
+                placeholder="描述你想要的图片..."
+                style={{
+                  background: colors.bgTertiary,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                }}
+              />
+            </div>
+
+            {/* 风格预设 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ color: colors.textPrimary, fontWeight: 500, display: 'block', marginBottom: '10px' }}>
+                风格预设
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {STYLE_PRESETS.map((style) => (
+                  <Tag
+                    key={style.id}
+                    style={{
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      background: colors.bgTertiary,
+                      border: `1px solid ${colors.border}`,
+                      color: colors.textPrimary,
+                    }}
+                    onClick={() => addStylePreset(style)}
+                  >
+                    {style.name}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+
+            {/* 模型选择 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ color: colors.textPrimary, fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                模型
+              </label>
+              <Select
+                value={editingImage.model}
+                onChange={(value) => setEditingImage({ ...editingImage, model: value })}
+                style={{ width: '100%' }}
+              >
+                {IMAGE_MODELS.map((model) => (
+                  <Option key={model.id} value={model.id}>
+                    <Space>
+                      <span>{model.icon}</span>
+                      <span>{model.name}</span>
+                    </Space>
+                  </Option>
+                ))}
+              </Select>
+            </div>
+
+            {/* 上传自定义图片 */}
+            <div>
+              <label style={{ color: colors.textPrimary, fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                上传自定义图片
+              </label>
+              <Upload {...uploadProps}>
+                <Button
+                  icon={<UploadOutlined />}
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    background: colors.bgTertiary,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                    borderStyle: 'dashed',
+                  }}
+                >
+                  点击或拖拽上传图片
+                </Button>
+              </Upload>
+              <p style={{ color: colors.textTertiary, fontSize: '12px', marginTop: '8px' }}>
+                支持 JPG、PNG、WebP 格式，最大 10MB
               </p>
             </div>
           </div>

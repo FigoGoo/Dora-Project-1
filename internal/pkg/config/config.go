@@ -74,8 +74,12 @@ type MinIOConfig struct {
 
 // RocketMQConfig RocketMQ配置
 type RocketMQConfig struct {
-	NameServers []string `mapstructure:"name_servers"`
-	GroupName  string   `mapstructure:"group_name"`
+	Endpoint      string   `mapstructure:"endpoint"`
+	NameServers   []string `mapstructure:"name_servers"`
+	GroupName     string   `mapstructure:"group_name"`
+	RetryTimes    int      `mapstructure:"retry_times"`
+	ProducerGroup string   `mapstructure:"producer_group"`
+	ConsumerGroup string   `mapstructure:"consumer_group"`
 }
 
 // EtcdConfig Etcd配置

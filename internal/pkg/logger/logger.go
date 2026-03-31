@@ -102,6 +102,11 @@ func Int(key string, val int) zap.Field {
 	return zap.Int(key, val)
 }
 
+// Int32 便捷方法创建Int32字段
+func Int32(key string, val int32) zap.Field {
+	return zap.Int32(key, val)
+}
+
 // Int64 便捷方法创建Int64字段
 func Int64(key string, val int64) zap.Field {
 	return zap.Int64(key, val)

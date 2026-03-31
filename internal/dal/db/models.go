@@ -96,3 +96,15 @@ type User struct {
 	Avatar   string `gorm:"size:500" json:"avatar"`
 	Status   string `gorm:"size:50;default:'active'" json:"status"`
 }
+
+// Workflow 工作流
+type Workflow struct {
+	BaseModel
+	ProjectID   uint64 `gorm:"index;not null" json:"project_id"`
+	Status      string `gorm:"size:50;default:'pending'" json:"status"`       // pending, running, completed, failed, paused
+	CurrentStep string `gorm:"size:50;default:'init'" json:"current_step"`     // init, script, storyboard, image, video, merge, complete
+	TotalSteps  int    `gorm:"default:6" json:"total_steps"`                   // 总步骤数
+	Progress    int    `gorm:"default:0" json:"progress"`                      // 进度百分比
+	StepStatus  string `gorm:"type:text" json:"step_status"`                   // JSON格式存储各步骤状态
+	ErrorMsg    string `gorm:"type:text" json:"error_msg"`                      // 错误信息
+}

@@ -5,13 +5,14 @@ import (
 	"dora-magic-box/internal/dal/db"
 	"dora-magic-box/internal/pkg/config"
 	"dora-magic-box/internal/pkg/logger"
+	"dora-magic-box/internal/pkg/queue"
 	"dora-magic-box/internal/pkg/registry"
+	"dora-magic-box/internal/pkg/util"
 	"dora-magic-box/kitex_gen/base"
 	"dora-magic-box/kitex_gen/image"
 	"dora-magic-box/kitex_gen/image/imageservice"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/server"
-	"github.com/google/uuid"
 	"net"
 	"time"
 )
@@ -22,14 +23,26 @@ type ImageServiceImpl struct{}
 // GenerateImage 生成画面
 func (s *ImageServiceImpl) GenerateImage(ctx context.Context, req *image.GenerateImageReq) (resp *image.GenerateImageResp, err error) {
 	logger.Info("GenerateImage called",
-		logger.GetLogger().String("storyboard_id", req.StoryboardId),
-		logger.GetLogger().String("prompt", req.Prompt),
+		logger.String("storyboard_id", req.StoryboardId),
+		logger.String("prompt", req.Prompt),
 	)
+
+	storyboardID, err := util.StringToUint64(req.StoryboardId)
+	if err != nil {
+		logger.Error("无效的分镜ID", logger.String("storyboard_id", req.StoryboardId), logger.ErrorField(err))
+		return &image.GenerateImageResp{
+			Base: &base.BaseResp{
+				Code: -1,
+				Msg:  "无效的分镜ID",
+			},
+			Data: nil,
+		}, nil
+	}
 
 	// 创建画面记录
 	imageModel := &db.Image{
-		StoryboardID: 1, // 暂时使用固定值，实际应从 req.StoryboardId 转换
-		URL:          "https://example.com/images/" + uuid.New().String() + ".png",
+		StoryboardID: storyboardID,
+		URL:          "https://example.com/images/" + time.Now().Format("20060102150405") + ".png",
 		Prompt:       req.Prompt,
 		Model:        "banana-2",
 		Status:       "completed",
@@ -43,13 +56,13 @@ func (s *ImageServiceImpl) GenerateImage(ctx context.Context, req *image.Generat
 			Msg:  "success",
 		},
 		Data: &image.ImageInfo{
-			Id:            uuid.New().String(),
+			Id:            util.Uint64ToString(imageModel.ID),
 			StoryboardId:  req.StoryboardId,
-			Url:           "https://example.com/images/" + uuid.New().String() + ".png",
+			Url:           imageModel.URL,
 			Prompt:        req.Prompt,
 			Model:         "banana-2",
 			Status:        "completed",
-			CreatedAt:     time.Now().Format(time.RFC3339),
+			CreatedAt:     util.FormatTimeToString(imageModel.CreatedAt),
 		},
 	}, nil
 }
@@ -57,20 +70,37 @@ func (s *ImageServiceImpl) GenerateImage(ctx context.Context, req *image.Generat
 // BatchGenerateImages 批量生成画面
 func (s *ImageServiceImpl) BatchGenerateImages(ctx context.Context, req *image.BatchGenerateImagesReq) (resp *image.BatchGenerateImagesResp, err error) {
 	logger.Info("BatchGenerateImages called",
-		logger.GetLogger().Int("storyboard_count", len(req.StoryboardIds)),
+		logger.Int("storyboard_count", len(req.StoryboardIds)),
 	)
 
 	var images []*image.ImageInfo
 
-	for _, id := range req.StoryboardIds {
-		images = append(images, &image.ImageInfo{
-			Id:            uuid.New().String(),
-			StoryboardId:  id,
-			Url:           "https://example.com/images/" + uuid.New().String() + ".png",
-			Prompt:        "批量生成的画面" + id,
+	for _, idStr := range req.StoryboardIds {
+		storyboardID, err := util.StringToUint64(idStr)
+		if err != nil {
+			logger.Error("无效的分镜ID", logger.String("storyboard_id", idStr), logger.ErrorField(err))
+			continue
+		}
+
+		// 创建画面记录
+		imageModel := &db.Image{
+			StoryboardID: storyboardID,
+			URL:          "https://example.com/images/" + time.Now().Format("20060102150405") + "_" + idStr + ".png",
+			Prompt:        "批量生成的画面" + idStr,
 			Model:         "banana-2",
 			Status:        "completed",
-			CreatedAt:     time.Now().Format(time.RFC3339),
+		}
+
+		db.Get().Create(imageModel)
+
+		images = append(images, &image.ImageInfo{
+			Id:            util.Uint64ToString(imageModel.ID),
+			StoryboardId:  idStr,
+			Url:           imageModel.URL,
+			Prompt:        "批量生成的画面" + idStr,
+			Model:         "banana-2",
+			Status:        "completed",
+			CreatedAt:     util.FormatTimeToString(imageModel.CreatedAt),
 		})
 	}
 
@@ -91,10 +121,49 @@ func main() {
 		panic(err)
 	}
 	if err := db.Init(); err != nil {
-		logger.Fatal("数据库初始化失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("数据库初始化失败", logger.Any("error", err))
 	}
 
 	cfg := config.MustGet()
+
+	// 初始化消息队列
+	if err := queue.Init(&cfg.RocketMQ); err != nil {
+		logger.Fatal("消息队列初始化失败", logger.Any("error", err))
+	}
+
+	// 启动图像生成任务消费者
+	if err := queue.StartConsumer("image", func(msg *queue.QueueMessage) error {
+		logger.Info("处理图像生成任务", logger.Any("msg", msg))
+
+		imageID, ok := msg.Data["image_id"].(string)
+		if !ok {
+			return nil // 忽略无效消息
+		}
+
+		// 模拟图像生成
+		time.Sleep(5 * time.Second)
+
+		// 更新图像状态
+		var img db.Image
+		id, _ := util.StringToUint64(imageID)
+		if err := db.Get().First(&img, id).Error; err == nil {
+			img.URL = "https://example.com/images/" + time.Now().Format("20060102150405") + ".png"
+			img.Status = "completed"
+			db.Get().Save(&img)
+		}
+
+		logger.Info("图像生成完成", logger.String("image_id", imageID))
+		return nil
+	}); err != nil {
+		logger.Fatal("启动消息队列消费者失败", logger.Any("error", err))
+	}
+
+	// 服务停止时关闭消息队列
+	defer func() {
+		if err := queue.Stop(); err != nil {
+			logger.Error("消息队列关闭失败", logger.Any("error", err))
+		}
+	}()
 
 	// 初始化服务注册与发现
 	if err := registry.InitRegistry(
@@ -104,7 +173,7 @@ func main() {
 		cfg.Etcd.Username,
 		cfg.Etcd.Password,
 	); err != nil {
-		logger.Fatal("注册中心初始化失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("注册中心初始化失败", logger.Any("error", err))
 	}
 
 	svr := imageservice.NewServer(new(ImageServiceImpl),
@@ -124,20 +193,20 @@ func main() {
 	}
 	ctx := context.Background()
 	if err := registry.GetRegistry().Register(ctx, instance, 30); err != nil {
-		logger.Fatal("服务注册失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("服务注册失败", logger.Any("error", err))
 	}
 
 	// 服务停止时注销
 	defer func() {
 		if err := registry.GetRegistry().Unregister(ctx, instance); err != nil {
-			logger.Error("服务注销失败", logger.GetLogger().Any("error", err))
+			logger.Error("服务注销失败", logger.Any("error", err))
 		}
 		logger.Info("Image Service 已停止")
 	}()
 
 	logger.Info("Image Service 启动",
-		logger.GetLogger().String("host", cfg.Server.Host),
-		logger.GetLogger().Int("port", cfg.Server.Port),
+		logger.String("host", cfg.Server.Host),
+		logger.Int("port", cfg.Server.Port),
 	)
 
 	svr.Run()

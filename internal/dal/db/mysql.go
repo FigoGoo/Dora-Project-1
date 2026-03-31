@@ -71,5 +71,6 @@ func AutoMigrate() error {
 		&Video{},
 		&MergedVideo{},
 		&ModelConfig{},
+		&Workflow{},
 	)
 }

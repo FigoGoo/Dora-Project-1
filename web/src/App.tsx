@@ -7,6 +7,7 @@ import { useAppStore } from './store';
 import { doraTheme } from './theme';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import Dashboard from './pages/Dashboard';
 import InspirationPage from './pages/InspirationPage';
 import ScriptEditorPage from './pages/ScriptEditorPage';
 import StoryboardPage from './pages/StoryboardPage';
@@ -76,36 +77,36 @@ function App() {
           )}
 
           <Routes>
-            <Route path="/" element={<Navigate to="/inspiration" replace />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/inspiration" element={<InspirationPage />} />
             <Route
-              path="/script"
+              path="/script-editor"
               element={
-                currentProject ? <ScriptEditorPage /> : <Navigate to="/inspiration" replace />
+                currentProject ? <ScriptEditorPage /> : <Navigate to="/" replace />
               }
             />
             <Route
               path="/storyboard"
               element={
-                currentProject?.script ? <StoryboardPage /> : <Navigate to="/script" replace />
+                currentProject ? <StoryboardPage /> : <Navigate to="/" replace />
               }
             />
             <Route
-              path="/image"
+              path="/image-editor"
               element={
-                currentProject?.storyboard ? <ImageEditorPage /> : <Navigate to="/storyboard" replace />
+                currentProject ? <ImageEditorPage /> : <Navigate to="/" replace />
               }
             />
             <Route
-              path="/video"
+              path="/video-editor"
               element={
-                currentProject?.images?.some(img => img.status === 'completed') ? <VideoEditorPage /> : <Navigate to="/image" replace />
+                currentProject ? <VideoEditorPage /> : <Navigate to="/" replace />
               }
             />
             <Route
               path="/publish"
               element={
-                currentProject?.finalVideo ? <PublishPage /> : <Navigate to="/video" replace />
+                currentProject ? <PublishPage /> : <Navigate to="/" replace />
               }
             />
             <Route path="*" element={<NotFoundPage />} />

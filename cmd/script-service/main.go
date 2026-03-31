@@ -5,13 +5,14 @@ import (
 	"dora-magic-box/internal/dal/db"
 	"dora-magic-box/internal/pkg/config"
 	"dora-magic-box/internal/pkg/logger"
+	"dora-magic-box/internal/pkg/queue"
 	"dora-magic-box/internal/pkg/registry"
+	"dora-magic-box/internal/pkg/util"
 	"dora-magic-box/kitex_gen/base"
 	"dora-magic-box/kitex_gen/script"
 	"dora-magic-box/kitex_gen/script/scriptservice"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/server"
-	"github.com/google/uuid"
 	"net"
 	"time"
 )
@@ -22,13 +23,25 @@ type ScriptServiceImpl struct{}
 // GenerateScript 生成剧本
 func (s *ScriptServiceImpl) GenerateScript(ctx context.Context, req *script.GenerateScriptReq) (resp *script.GenerateScriptResp, err error) {
 	logger.Info("GenerateScript called",
-		logger.GetLogger().String("project_id", req.ProjectId),
-		logger.GetLogger().String("inspiration", req.Inspiration),
+		logger.String("project_id", req.ProjectId),
+		logger.String("inspiration", req.Inspiration),
 	)
+
+	projectID, err := util.StringToUint64(req.ProjectId)
+	if err != nil {
+		logger.Error("无效的项目ID", logger.String("project_id", req.ProjectId), logger.ErrorField(err))
+		return &script.GenerateScriptResp{
+			Base: &base.BaseResp{
+				Code: -1,
+				Msg:  "无效的项目ID",
+			},
+			Data: nil,
+		}, nil
+	}
 
 	// 创建剧本记录
 	scriptModel := &db.Script{
-		ProjectID: 1, // 暂时使用固定值，实际应从 req.ProjectId 转换
+		ProjectID: projectID,
 		Content:   "生成的剧本内容：" + req.Inspiration,
 		Model:     "deepseek",
 		Status:    "completed",
@@ -42,12 +55,12 @@ func (s *ScriptServiceImpl) GenerateScript(ctx context.Context, req *script.Gene
 			Msg:  "success",
 		},
 		Data: &script.ScriptInfo{
-			Id:         uuid.New().String(),
+			Id:         util.Uint64ToString(scriptModel.ID),
 			ProjectId:  req.ProjectId,
 			Content:    "生成的剧本内容：" + req.Inspiration,
 			Model:      "deepseek",
 			Status:     "completed",
-			CreatedAt:  time.Now().Format(time.RFC3339),
+			CreatedAt:  util.FormatTimeToString(scriptModel.CreatedAt),
 		},
 	}, nil
 }
@@ -55,13 +68,26 @@ func (s *ScriptServiceImpl) GenerateScript(ctx context.Context, req *script.Gene
 // GetScript 获取剧本
 func (s *ScriptServiceImpl) GetScript(ctx context.Context, req *script.GetScriptReq) (resp *script.GetScriptResp, err error) {
 	logger.Info("GetScript called",
-		logger.GetLogger().String("id", req.Id),
+		logger.String("id", req.Id),
 	)
+
+	id, err := util.StringToUint64(req.Id)
+	if err != nil {
+		logger.Error("无效的剧本ID", logger.String("id", req.Id), logger.ErrorField(err))
+		return &script.GetScriptResp{
+			Base: &base.BaseResp{
+				Code: -1,
+				Msg:  "无效的剧本ID",
+			},
+			Data: nil,
+		}, nil
+	}
 
 	// 查找剧本
 	var scriptModel db.Script
-	result := db.Get().First(&scriptModel, req.Id)
+	result := db.Get().First(&scriptModel, id)
 	if result.Error != nil {
+		logger.Warn("剧本未找到", logger.String("id", req.Id), logger.ErrorField(result.Error))
 		return &script.GetScriptResp{
 			Base: &base.BaseResp{
 				Code: -1,
@@ -77,12 +103,12 @@ func (s *ScriptServiceImpl) GetScript(ctx context.Context, req *script.GetScript
 			Msg:  "success",
 		},
 		Data: &script.ScriptInfo{
-			Id:         req.Id,
-			ProjectId:  "1",
+			Id:         util.Uint64ToString(scriptModel.ID),
+			ProjectId:  util.Uint64ToString(scriptModel.ProjectID),
 			Content:    scriptModel.Content,
 			Model:      scriptModel.Model,
 			Status:     scriptModel.Status,
-			CreatedAt:  scriptModel.CreatedAt.Format(time.RFC3339),
+			CreatedAt:  util.FormatTimeToString(scriptModel.CreatedAt),
 		},
 	}, nil
 }
@@ -100,10 +126,52 @@ func main() {
 
 	// 初始化数据库
 	if err := db.Init(); err != nil {
-		logger.Fatal("数据库初始化失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("数据库初始化失败", logger.Any("error", err))
 	}
 
 	cfg := config.MustGet()
+
+	// 初始化消息队列
+	if err := queue.Init(&cfg.RocketMQ); err != nil {
+		logger.Fatal("消息队列初始化失败", logger.Any("error", err))
+	}
+
+	// 启动剧本生成任务消费者
+	if err := queue.StartConsumer("script", func(msg *queue.QueueMessage) error {
+		logger.Info("处理剧本生成任务", logger.Any("msg", msg))
+
+		scriptID, ok := msg.Data["script_id"].(uint64)
+		if !ok {
+			return nil // 忽略无效消息
+		}
+
+		description, _ := msg.Data["description"].(string)
+		model, _ := msg.Data["model"].(string)
+
+		// 模拟剧本生成
+		time.Sleep(3 * time.Second)
+
+		// 更新剧本状态
+		var script db.Script
+		if err := db.Get().First(&script, scriptID).Error; err == nil {
+			script.Content = "生成的剧本内容：" + description
+			script.Model = model
+			script.Status = "completed"
+			db.Get().Save(&script)
+		}
+
+		logger.Info("剧本生成完成", logger.Uint64("script_id", scriptID))
+		return nil
+	}); err != nil {
+		logger.Fatal("启动消息队列消费者失败", logger.Any("error", err))
+	}
+
+	// 服务停止时关闭消息队列
+	defer func() {
+		if err := queue.Stop(); err != nil {
+			logger.Error("消息队列关闭失败", logger.Any("error", err))
+		}
+	}()
 
 	// 初始化服务注册与发现
 	if err := registry.InitRegistry(
@@ -113,7 +181,7 @@ func main() {
 		cfg.Etcd.Username,
 		cfg.Etcd.Password,
 	); err != nil {
-		logger.Fatal("注册中心初始化失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("注册中心初始化失败", logger.Any("error", err))
 	}
 
 	// 创建服务
@@ -136,20 +204,20 @@ func main() {
 	}
 	ctx := context.Background()
 	if err := registry.GetRegistry().Register(ctx, instance, 30); err != nil {
-		logger.Fatal("服务注册失败", logger.GetLogger().Any("error", err))
+		logger.Fatal("服务注册失败", logger.Any("error", err))
 	}
 
 	// 服务停止时注销
 	defer func() {
 		if err := registry.GetRegistry().Unregister(ctx, instance); err != nil {
-			logger.Error("服务注销失败", logger.GetLogger().Any("error", err))
+			logger.Error("服务注销失败", logger.Any("error", err))
 		}
 		logger.Info("Script Service 已停止")
 	}()
 
 	logger.Info("Script Service 启动",
-		logger.GetLogger().String("host", cfg.Server.Host),
-		logger.GetLogger().Int("port", cfg.Server.Port),
+		logger.String("host", cfg.Server.Host),
+		logger.Int("port", cfg.Server.Port),
 	)
 
 	svr.Run()

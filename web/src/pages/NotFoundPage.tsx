@@ -3,8 +3,9 @@ import { Button, Result, Typography } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import { colors, gradientStyles, shadowStyles } from '../theme';
 
+const { Paragraph } = Typography;
+
 const NotFoundPage: React.FC = () => {
-  const { Paragraph } = Typography;
 
   return (
     <Result

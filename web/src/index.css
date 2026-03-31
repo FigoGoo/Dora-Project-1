@@ -27,23 +27,33 @@
     --mb-border-light: rgba(107, 63, 160, 0.15);
 
     --mb-shadow-glow: 0 0 30px rgba(107, 63, 160, 0.4);
+    --mb-shadow-glow-soft: 0 0 20px rgba(107, 63, 160, 0.25);
+    --mb-shadow-glow-strong: 0 0 40px rgba(107, 63, 160, 0.6);
     --mb-shadow-pink: 0 0 30px rgba(233, 30, 140, 0.4);
     --mb-shadow-cyan: 0 0 30px rgba(0, 212, 255, 0.4);
+    --mb-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --mb-shadow-card-soft: 0 4px 20px rgba(0, 0, 0, 0.2);
+    --mb-shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
 
     --mb-radius-sm: 8px;
     --mb-radius-md: 12px;
     --mb-radius-lg: 20px;
     --mb-radius-xl: 28px;
 
-    --mb-transition-fast: 0.2s ease;
-    --mb-transition-normal: 0.3s ease;
-    --mb-transition-slow: 0.5s ease;
+    --mb-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --mb-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --mb-transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    --mb-transition-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
@@ -53,8 +63,11 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
+/* 精致的背景效果 */
 body::before {
     content: '';
     position: fixed;
@@ -68,6 +81,27 @@ body::before {
         radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
+}
+
+/* 动态背景光晕效果 */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 25% 25%, rgba(107, 63, 160, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 75% 75%, rgba(233, 30, 140, 0.06) 0%, transparent 40%);
+    animation: backgroundPulse 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes backgroundPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
 }
 
 .mb-app {
@@ -84,4 +118,188 @@ body::before {
     width: 100%;
     margin: 0 auto;
     padding: 32px 24px;
+}
+
+/* 动画关键帧 */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes floatSlow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: var(--mb-shadow-glow-soft); }
+    50% { box-shadow: var(--mb-shadow-glow); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 动画类 */
+.animation-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.animation-float-slow {
+    animation: floatSlow 8s ease-in-out infinite;
+}
+
+.animation-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.animation-pulse-glow {
+    animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animation-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animation-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animation-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animation-gradient-move {
+    background-size: 200% 200%;
+    animation: gradientMove 6s ease infinite;
+}
+
+/* 选择文字样式 */
+::selection {
+    background: rgba(107, 63, 160, 0.4);
+    color: var(--mb-text-primary);
+}
+
+::-moz-selection {
+    background: rgba(107, 63, 160, 0.4);
+    color: var(--mb-text-primary);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--mb-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--mb-purple);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--mb-purple-light);
+}
+
+/* Ant Design 优化 */
+.ant-modal-mask {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.ant-drawer-mask {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* 玻璃态卡片悬停效果 */
+.glass-card {
+    background: var(--mb-bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--mb-border);
+    transition: all var(--mb-transition-fast);
+}
+
+.glass-card:hover {
+    border-color: rgba(107, 63, 160, 0.5);
+    box-shadow: var(--mb-shadow-card-hover);
+    transform: translateY(-2px);
+}
+
+/* 渐变按钮 */
+.gradient-button {
+    background: var(--mb-gradient-1);
+    background-size: 200% 200%;
+    border: none;
+    transition: all var(--mb-transition-fast);
+}
+
+.gradient-button:hover {
+    background-position: 100% 50%;
+    box-shadow: var(--mb-shadow-glow);
+    transform: translateY(-1px);
+}
+
+/* 发光文字 */
+.glow-text {
+    text-shadow: 0 0 20px rgba(107, 63, 160, 0.5);
 }

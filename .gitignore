@@ -26,6 +26,8 @@ vendor/
 # Build output
 /bin/
 /dist/
+*.service
+api-gateway
 
 # Environment files
 .env

@@ -32,9 +32,11 @@ minio:
   use_ssl: false
 
 rocketmq:
-  name_servers:
-    - localhost:9876
+  endpoint: localhost:9876
   group_name: dora_consumer_group
+  retry_times: 3
+  producer_group: dora_producer_group
+  consumer_group: dora_consumer_group
 
 etcd:
   endpoints:

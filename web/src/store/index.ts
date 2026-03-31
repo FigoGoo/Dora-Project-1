@@ -10,6 +10,8 @@ import {
   VideoDuration,
   VisualStyle,
   AspectRatio,
+  ScriptVersion,
+  Scene,
 } from '../types';
 
 // 草稿数据类型
@@ -150,6 +152,18 @@ interface AppState {
   addTask: (task: GenerationTask) => void;
   updateTask: (id: string, updates: Partial<GenerationTask>) => void;
   removeTask: (id: string) => void;
+
+  // 剧本版本管理
+  saveScriptVersion: (changeDescription?: string) => void;
+  restoreScriptVersion: (versionId: string) => void;
+  deleteScriptVersion: (versionId: string) => void;
+  getScriptVersions: () => ScriptVersion[];
+
+  // 场景管理
+  addScene: (scene: Omit<Scene, 'id' | 'number'>) => void;
+  updateScene: (sceneId: string, updates: Partial<Scene>) => void;
+  deleteScene: (sceneId: string) => void;
+  reorderScenes: (fromIndex: number, toIndex: number) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -293,6 +307,226 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           tasks: state.tasks.filter((t) => t.id !== id),
         }));
+      },
+
+      // 剧本版本管理
+      saveScriptVersion: (changeDescription) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script) return;
+
+        const currentVersions = currentProject.script.versions || [];
+        const newVersionNumber = currentVersions.length + 1;
+
+        const newVersion: ScriptVersion = {
+          id: Date.now().toString(),
+          versionNumber: newVersionNumber,
+          title: currentProject.script.title,
+          content: currentProject.script.content,
+          scenes: [...(currentProject.script.scenes || [])],
+          createdAt: Date.now(),
+          changeDescription,
+        };
+
+        set((state) => {
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              versions: [...currentVersions, newVersion],
+              currentVersion: newVersionNumber,
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      restoreScriptVersion: (versionId) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script?.versions) return;
+
+        const version = currentProject.script.versions.find((v) => v.id === versionId);
+        if (!version) return;
+
+        set((state) => {
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              title: version.title,
+              content: version.content,
+              scenes: [...version.scenes],
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      deleteScriptVersion: (versionId) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script?.versions) return;
+
+        set((state) => {
+          const updatedVersions = currentProject.script!.versions!.filter(
+            (v) => v.id !== versionId
+          );
+
+          // 重新编号版本
+          const renumberedVersions = updatedVersions
+            .sort((a, b) => a.createdAt - b.createdAt)
+            .map((v, index) => ({ ...v, versionNumber: index + 1 }));
+
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              versions: renumberedVersions,
+              currentVersion: renumberedVersions.length > 0 ? renumberedVersions.length : undefined,
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      getScriptVersions: () => {
+        const { currentProject } = get();
+        return currentProject?.script?.versions || [];
+      },
+
+      // 场景管理
+      addScene: (scene) => {
+        const { currentProject } = get();
+        if (!currentProject) return;
+
+        const scenes = currentProject.script?.scenes || [];
+        const newScene: Scene = {
+          ...scene,
+          id: Date.now().toString(),
+          number: scenes.length + 1,
+        };
+
+        set((state) => {
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              scenes: [...scenes, newScene],
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      updateScene: (sceneId, updates) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script?.scenes) return;
+
+        set((state) => {
+          const updatedScenes = currentProject.script!.scenes.map((s) =>
+            s.id === sceneId ? { ...s, ...updates } : s
+          );
+
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              scenes: updatedScenes,
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      deleteScene: (sceneId) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script?.scenes) return;
+
+        set((state) => {
+          const updatedScenes = currentProject.script!.scenes
+            .filter((s) => s.id !== sceneId)
+            .sort((a, b) => a.number - b.number)
+            .map((s, index) => ({ ...s, number: index + 1 }));
+
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              scenes: updatedScenes,
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
+      },
+
+      reorderScenes: (fromIndex, toIndex) => {
+        const { currentProject } = get();
+        if (!currentProject || !currentProject.script?.scenes) return;
+
+        set((state) => {
+          const scenes = [...currentProject.script!.scenes];
+          const [movedScene] = scenes.splice(fromIndex, 1);
+          scenes.splice(toIndex, 0, movedScene);
+
+          // 重新编号
+          const reorderedScenes = scenes.map((s, index) => ({ ...s, number: index + 1 }));
+
+          const updatedProject: Project = {
+            ...currentProject,
+            script: {
+              ...currentProject.script!,
+              scenes: reorderedScenes,
+            },
+            updatedAt: Date.now(),
+          };
+
+          return {
+            currentProject: updatedProject,
+            projects: state.projects.map((p) =>
+              p.id === currentProject.id ? updatedProject : p
+            ),
+          };
+        });
       },
     }),
     {
