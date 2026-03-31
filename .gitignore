@@ -45,3 +45,18 @@ logs/
 
 # Temporary files
 *.tmp
+*.backup
+*.bak
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.vite/
+web/*.html.backup
+
+# Kitex
+kitex_gen/
+
+# Test
+test/
+
