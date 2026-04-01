@@ -8,6 +8,7 @@ import { InspirationSuggestion } from '../types';
 import { api } from '../api';
 import { colors, gradientStyles, shadowStyles } from '../theme';
 import { debounce } from '../utils';
+import ContextHelp from '../components/ContextHelp';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -330,6 +331,7 @@ const InspirationPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="inspiration" type="inline" />
       <Card
         title={
           <div style={{

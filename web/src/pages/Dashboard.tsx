@@ -7,6 +7,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
@@ -18,11 +19,16 @@ const { Title, Paragraph } = Typography;
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { projects, currentProject, createProject, setCurrentProject, updateProject, deleteProject } = useAppStore();
+  const { projects, currentProject, createProject, setCurrentProject, updateProject, deleteProject, setTourVisible, setTourStep } = useAppStore();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [form] = Form.useForm();
+
+  const handleShowTour = () => {
+    setTourStep(0);
+    setTourVisible(true);
+  };
 
   const handleCreateProject = () => {
     const newProject = createProject();
@@ -180,23 +186,42 @@ const Dashboard: React.FC = () => {
               输入灵感，一键生成精彩视频
             </Paragraph>
           </div>
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={handleCreateProject}
-            style={{
-              height: '48px',
-              padding: '0 32px',
-              fontSize: '16px',
-              background: gradientStyles.primary,
-              border: 'none',
-              borderRadius: '12px',
-              fontWeight: 500,
-            }}
-          >
-            创建新项目
-          </Button>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Button
+              type="default"
+              size="large"
+              icon={<PlayCircleOutlined />}
+              onClick={handleShowTour}
+              style={{
+                height: '48px',
+                padding: '0 24px',
+                fontSize: '16px',
+                background: colors.bgTertiary,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '12px',
+                fontWeight: 500,
+              }}
+            >
+              新手引导
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={handleCreateProject}
+              style={{
+                height: '48px',
+                padding: '0 32px',
+                fontSize: '16px',
+                background: gradientStyles.primary,
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 500,
+              }}
+            >
+              创建新项目
+            </Button>
+          </div>
         </div>
       </Card>
 

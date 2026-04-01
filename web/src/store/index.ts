@@ -12,6 +12,8 @@ import {
   AspectRatio,
   ScriptVersion,
   Scene,
+  TaskLog,
+  SubTask,
 } from '../types';
 
 // 草稿数据类型
@@ -120,6 +122,24 @@ interface AppState {
   isLoading: boolean;
   error: string | null;
 
+  // 生成过程反馈
+  activeTaskId: string | null; // 当前活跃任务ID
+  progressHistory: { taskId: string; timestamp: number; progress: number }[]; // 进度历史
+  performanceMetrics: { // 性能指标
+    averageGenerationTime: number;
+    successRate: number;
+    modelPerformance: Record<string, { avgTime: number; successRate: number }>;
+  };
+
+  // 新手引导
+  isFirstTime: boolean;
+  tourStep: number;
+  tourVisible: boolean;
+
+  // 帮助系统
+  helpVisible: boolean;
+  currentHelpTopic: string | null;
+
   // 操作方法
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -152,6 +172,11 @@ interface AppState {
   addTask: (task: GenerationTask) => void;
   updateTask: (id: string, updates: Partial<GenerationTask>) => void;
   removeTask: (id: string) => void;
+  // 任务日志操作
+  addTaskLog: (taskId: string, log: TaskLog) => void;
+  // 子任务操作
+  updateSubTask: (taskId: string, subTaskId: string, updates: Partial<SubTask>) => void;
+  addSubTask: (taskId: string, subTask: SubTask) => void;
 
   // 剧本版本管理
   saveScriptVersion: (changeDescription?: string) => void;
@@ -164,6 +189,17 @@ interface AppState {
   updateScene: (sceneId: string, updates: Partial<Scene>) => void;
   deleteScene: (sceneId: string) => void;
   reorderScenes: (fromIndex: number, toIndex: number) => void;
+
+  // 新手引导
+  setIsFirstTime: (isFirst: boolean) => void;
+  setTourStep: (step: number) => void;
+  setTourVisible: (visible: boolean) => void;
+  resetTour: () => void;
+  completeTour: () => void;
+
+  // 帮助系统
+  setHelpVisible: (visible: boolean) => void;
+  setCurrentHelpTopic: (topic: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -177,6 +213,29 @@ export const useAppStore = create<AppState>()(
       drafts: [],
       isLoading: false,
       error: null,
+
+      // 生成过程反馈
+      activeTaskId: null,
+      progressHistory: [],
+      performanceMetrics: {
+        averageGenerationTime: 0,
+        successRate: 1,
+        modelPerformance: {
+          deepseek: { avgTime: 30, successRate: 0.95 },
+          gemini: { avgTime: 45, successRate: 0.92 },
+          banana: { avgTime: 60, successRate: 0.88 },
+          seedance: { avgTime: 120, successRate: 0.85 },
+        },
+      },
+
+      // 新手引导
+      isFirstTime: true,
+      tourStep: 0,
+      tourVisible: false,
+
+      // 帮助系统
+      helpVisible: false,
+      currentHelpTopic: null,
 
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
@@ -292,20 +351,75 @@ export const useAppStore = create<AppState>()(
       addTask: (task) => {
         set((state) => ({
           tasks: [...state.tasks, task],
+          activeTaskId: task.id,
         }));
       },
 
       updateTask: (id, updates) => {
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
+        set((state) => {
+          const updatedTasks = state.tasks.map((t) =>
             t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t
-          ),
-        }));
+          );
+
+          // 保存进度历史
+          const task = updatedTasks.find(t => t.id === id);
+          let newProgressHistory = [...state.progressHistory];
+          if (task && updates.progress !== undefined) {
+            newProgressHistory.push({
+              taskId: id,
+              timestamp: Date.now(),
+              progress: updates.progress,
+            });
+          }
+
+          return {
+            tasks: updatedTasks,
+            progressHistory: newProgressHistory,
+          };
+        });
       },
 
       removeTask: (id) => {
         set((state) => ({
           tasks: state.tasks.filter((t) => t.id !== id),
+          activeTaskId: state.activeTaskId === id ? null : state.activeTaskId,
+        }));
+      },
+
+      // 任务日志操作
+      addTaskLog: (taskId, log: TaskLog) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId ? {
+              ...t,
+              logs: [...(t.logs || []), log],
+            } : t
+          ),
+        }));
+      },
+
+      // 子任务操作
+      updateSubTask: (taskId, subTaskId, updates) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId ? {
+              ...t,
+              subTasks: (t.subTasks || []).map((st) =>
+                st.id === subTaskId ? { ...st, ...updates } : st
+              ),
+            } : t
+          ),
+        }));
+      },
+
+      addSubTask: (taskId, subTask: SubTask) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId ? {
+              ...t,
+              subTasks: [...(t.subTasks || []), subTask],
+            } : t
+          ),
         }));
       },
 
@@ -528,6 +642,17 @@ export const useAppStore = create<AppState>()(
           };
         });
       },
+
+      // 新手引导
+      setIsFirstTime: (isFirst) => set({ isFirstTime: isFirst }),
+      setTourStep: (step) => set({ tourStep: step }),
+      setTourVisible: (visible) => set({ tourVisible: visible }),
+      resetTour: () => set({ tourStep: 0, tourVisible: true }),
+      completeTour: () => set({ isFirstTime: false, tourVisible: false, tourStep: 0 }),
+
+      // 帮助系统
+      setHelpVisible: (visible) => set({ helpVisible: visible }),
+      setCurrentHelpTopic: (topic) => set({ currentHelpTopic: topic }),
     }),
     {
       name: 'dora-magic-box-storage',

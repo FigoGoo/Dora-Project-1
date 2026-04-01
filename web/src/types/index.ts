@@ -162,4 +162,27 @@ export interface GenerationTask {
   updatedAt: number;
   result?: any;
   error?: string;
+  // 新增字段
+  estimatedTime?: number; // 预计完成时间（秒）
+  elapsedTime?: number; // 已用时（秒）
+  logs?: TaskLog[]; // 实时状态日志
+  subTasks?: SubTask[]; // 子任务进度
+}
+
+// 任务日志
+export interface TaskLog {
+  id: string;
+  message: string;
+  level: 'info' | 'success' | 'warning' | 'error';
+  timestamp: number;
+  details?: string;
+}
+
+// 子任务
+export interface SubTask {
+  id: string;
+  name: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  estimatedTime?: number;
 }

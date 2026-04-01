@@ -6,16 +6,24 @@ import {
   LoginOutlined,
   MenuOutlined,
   PlusOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 import { useAppStore } from '../store';
 import { colors, gradientStyles, shadowStyles, animationStyles } from '../theme';
 
 const { Header: AntHeader } = Layout;
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ sidebarCollapsed, onToggleSidebar }) => {
   const { projects, currentProject, setCurrentProject, setError, saveProject } = useAppStore();
   const [messageApi, contextHolder] = message.useMessage();
+  const navigate = useNavigate();
 
   // 项目切换菜单
   const projectMenuItems: MenuProps['items'] = projects.map((project) => ({
@@ -69,7 +77,7 @@ const Header: React.FC = () => {
         }} />
 
         <div style={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-          <Tooltip title="菜单 (开发中)">
+          <Tooltip title={sidebarCollapsed ? '展开菜单' : '收起菜单'}>
             <MenuOutlined
               style={{
                 fontSize: '24px',
@@ -80,7 +88,7 @@ const Header: React.FC = () => {
                 padding: '8px',
                 borderRadius: '10px',
               }}
-              onClick={() => messageApi.info('侧边栏功能开发中...')}
+              onClick={onToggleSidebar}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = colors.primaryLight;
                 e.currentTarget.style.backgroundColor = 'rgba(107, 63, 160, 0.15)';
@@ -132,6 +140,34 @@ const Header: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
+          <Tooltip title="视频教程">
+            <Button
+              icon={<PlayCircleOutlined />}
+              style={{
+                background: 'transparent',
+                borderColor: colors.border,
+                color: colors.textSecondary,
+                height: '44px',
+                padding: '0 16px',
+                borderRadius: '12px',
+                transition: `all ${animationStyles.fast}`,
+              }}
+              onClick={() => navigate('/tutorials')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = colors.primary;
+                e.currentTarget.style.color = colors.textPrimary;
+                e.currentTarget.style.backgroundColor = 'rgba(107, 63, 160, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = colors.border;
+                e.currentTarget.style.color = colors.textSecondary;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              视频教程
+            </Button>
+          </Tooltip>
+
           <Dropdown
             menu={{
               items: [

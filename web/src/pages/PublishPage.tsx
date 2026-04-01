@@ -17,6 +17,7 @@ import {
   Upload,
   Progress,
 } from 'antd';
+import ContextHelp from '../components/ContextHelp';
 import {
   LeftOutlined,
   DownloadOutlined,
@@ -293,6 +294,7 @@ const PublishPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="publish" type="inline" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '32px' }}>
         {/* 左侧：视频预览和基础设置 */}
         <div>

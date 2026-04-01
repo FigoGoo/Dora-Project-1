@@ -15,6 +15,7 @@ import {
   Popconfirm,
   Badge,
 } from 'antd';
+import ContextHelp from '../components/ContextHelp';
 import {
   SaveOutlined,
   EditOutlined,
@@ -413,6 +414,7 @@ const ScriptEditorPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="script" type="inline" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '32px' }}>
         {/* 左侧：剧本编辑器 */}
         <div>

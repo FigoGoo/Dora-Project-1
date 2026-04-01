@@ -17,6 +17,7 @@ import {
   Badge,
   Image,
 } from 'antd';
+import ContextHelp from '../components/ContextHelp';
 import {
   EditOutlined,
   LeftOutlined,
@@ -316,6 +317,7 @@ const ImageEditorPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="image" type="inline" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
         {/* 左侧：图片编辑器 */}
         <div>

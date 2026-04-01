@@ -17,6 +17,7 @@ import {
   Badge,
   Switch,
 } from 'antd';
+import ContextHelp from '../components/ContextHelp';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -365,6 +366,7 @@ const VideoEditorPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="video" type="inline" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
         {/* 左侧：视频编辑器 */}
         <div>

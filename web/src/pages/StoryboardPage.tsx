@@ -16,6 +16,7 @@ import {
   Popconfirm,
   Tabs,
 } from 'antd';
+import ContextHelp from '../components/ContextHelp';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -488,6 +489,7 @@ const StoryboardPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {contextHolder}
+      <ContextHelp topic="storyboard" type="inline" />
 
       {/* 时间轴 - 始终显示在顶部 */}
       {storyboardPanels.length > 0 && (
