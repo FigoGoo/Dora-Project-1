@@ -1,0 +1,366 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: dora-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: dora_magic_box
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - dora-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: dora-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - dora-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO 对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: dora-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - dora-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # RocketMQ NameServer
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.0
+    container_name: dora-rocketmq-namesrv
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
+    volumes:
+      - rocketmq-namesrv-data:/home/rocketmq/logs
+    networks:
+      - dora-network
+
+  # RocketMQ Broker
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.0
+    container_name: dora-rocketmq-broker
+    command: sh mqbroker -n rocketmq-namesrv:9876
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_started
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+    volumes:
+      - rocketmq-broker-data:/home/rocketmq/store
+    networks:
+      - dora-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/gateway.Dockerfile
+    container_name: dora-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8080
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_MINIO_ENDPOINT: minio:9000
+      DORA_MINIO_ACCESS_KEY: minioadmin
+      DORA_MINIO_SECRET_KEY: minioadmin
+      DORA_ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_started
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Script Service
+  script-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/script-service.Dockerfile
+    container_name: dora-script-service
+    ports:
+      - "8881:8881"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8881
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_started
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Storyboard Service
+  storyboard-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/storyboard-service.Dockerfile
+    container_name: dora-storyboard-service
+    ports:
+      - "8882:8882"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8882
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis redis:
+        condition: service_healthy
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Image Service
+  image-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/image-service.Dockerfile
+    container_name: dora-image-service
+    ports:
+      - "8883:8883"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8883
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_MINIO_ENDPOINT: minio:9000
+      DORA_MINIO_ACCESS_KEY: minioadmin
+      DORA_MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Video Service
+  video-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/video-service.Dockerfile
+    container_name: dora-video-service
+    ports:
+      - "8884:8884"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8884
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_MINIO_ENDPOINT: minio:9000
+      DORA_MINIO_ACCESS_KEY: minioadmin
+      DORA_MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Merge Service
+  merge-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/merge-service.Dockerfile
+    container_name: dora-merge-service
+    ports:
+      - "8885:8885"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8885
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_MINIO_ENDPOINT: minio:9000
+      DORA_MINIO_ACCESS_KEY: minioadmin
+      DORA_MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Model Service
+  model-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/model-service.Dockerfile
+    container_name: dora-model-service
+    ports:
+      - "8886:8886"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8886
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # Workflow Service
+  workflow-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/workflow-service.Dockerfile
+    container_name: dora-workflow-service
+    ports:
+      - "8887:8887"
+    environment:
+      DORA_APP_NAME: dora-magic-box
+      DORA_SERVER_HOST: 0.0.0.0
+      DORA_SERVER_PORT: 8887
+      DORA_MYSQL_HOST: mysql
+      DORA_MYSQL_PORT: 3306
+      DORA_MYSQL_USER: root
+      DORA_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DORA_MYSQL_DATABASE: dora_magic_box
+      DORA_REDIS_HOST: redis
+      DORA_REDIS_PORT: 6379
+      DORA_ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_started
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+  # 前端服务
+  frontend:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/frontend.Dockerfile
+    container_name: dora-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - dora-network
+    restart: unless-stopped
+
+networks:
+  dora-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+  rocketmq-namesrv-data:
+  rocketmq-broker-data:
